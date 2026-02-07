@@ -19,37 +19,37 @@ $ echo '{"level":"info","ts":"2026-01-15T10:30:01.456Z","msg":"server started","
 
 `cat logs.jsonl | cor`
 
-![Default colorized output](assets/demo/01-default.png)
+![Default colorized output](https://raw.githubusercontent.com/alexsavio/cor-cli/main/assets/demo/01-default.png)
 
 ### Level filtering
 
 `cat logs.jsonl | cor --level warn`
 
-![Level filtering](assets/demo/02-level-filter.png)
+![Level filtering](https://raw.githubusercontent.com/alexsavio/cor-cli/main/assets/demo/02-level-filter.png)
 
 ### Include specific fields
 
 `cat logs.jsonl | cor -i method,path,status`
 
-![Include fields](assets/demo/03-include-fields.png)
+![Include fields](https://raw.githubusercontent.com/alexsavio/cor-cli/main/assets/demo/03-include-fields.png)
 
 ### Exclude fields
 
 `cat logs.jsonl | cor -e func,query`
 
-![Exclude fields](assets/demo/04-exclude-fields.png)
+![Exclude fields](https://raw.githubusercontent.com/alexsavio/cor-cli/main/assets/demo/04-exclude-fields.png)
 
 ### JSON passthrough
 
 `cat logs.jsonl | cor --json --level error`
 
-![JSON output](assets/demo/05-json-output.png)
+![JSON output](https://raw.githubusercontent.com/alexsavio/cor-cli/main/assets/demo/05-json-output.png)
 
 ### Field truncation
 
 `cat logs.jsonl | cor --max-field-length 20`
 
-![Truncate fields](assets/demo/06-truncate-fields.png)
+![Truncate fields](https://raw.githubusercontent.com/alexsavio/cor-cli/main/assets/demo/06-truncate-fields.png)
 
 ## Features
 
