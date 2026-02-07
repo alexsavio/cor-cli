@@ -16,6 +16,8 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: cargo-${{ runner.os }}
 
       - name: Install termshot
         run: |
