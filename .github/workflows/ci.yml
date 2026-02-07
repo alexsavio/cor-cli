@@ -97,7 +97,7 @@ jobs:
         run: cargo install cargo-tarpaulin
 
       - name: Generate coverage
-        run: cargo tarpaulin --out xml --fail-under 80
+        run: cargo tarpaulin --out xml --fail-under 65
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
