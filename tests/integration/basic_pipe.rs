@@ -191,14 +191,14 @@ fn structlog_fixture_auto_detect() {
 }
 
 #[test]
-fn timestamp_displayed_as_hhmmss() {
+fn timestamp_displayed_as_datetime() {
     let input = r#"{"ts":"2026-01-15T10:30:00.123Z","level":"info","msg":"hello"}"#;
     cor()
         .arg("--color=never")
         .write_stdin(input)
         .assert()
         .success()
-        .stdout(predicate::str::contains("10:30:00.123"));
+        .stdout(predicate::str::contains("2026-01-15T10:30:00.123"));
 }
 
 #[test]

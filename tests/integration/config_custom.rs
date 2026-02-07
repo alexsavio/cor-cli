@@ -45,7 +45,7 @@ fn custom_timestamp_key() {
         .write_stdin(input)
         .assert()
         .success()
-        .stdout(predicate::str::contains("10:30:00.000"))
+        .stdout(predicate::str::contains("2026-01-15T10:30:00.000"))
         .stdout(predicate::str::contains("INFO"))
         .stdout(predicate::str::contains("hello"));
 }
