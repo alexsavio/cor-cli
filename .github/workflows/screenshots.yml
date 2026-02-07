@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   screenshots:
@@ -30,21 +29,11 @@ jobs:
       - name: Generate screenshots
         run: bash scripts/demo-screenshots.sh
 
-      - name: Check for changes
-        id: diff
+      - name: Commit updated screenshots
         run: |
-          git diff --quiet assets/demo/ && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
-
-      - name: Create Pull Request
-        if: steps.diff.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v8
-        with:
-          commit-message: "chore: update demo screenshots"
-          title: "chore: update demo screenshots"
-          body: |
-            Auto-generated screenshot update.
-
-            Triggered by ${{ github.sha }}.
-          branch: chore/update-screenshots
-          delete-branch: true
-          labels: documentation
+          git diff --quiet assets/demo/ && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/demo/
+          git commit -m "chore: update demo screenshots [skip ci]"
+          git push
