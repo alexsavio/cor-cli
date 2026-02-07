@@ -43,6 +43,11 @@ fn main() -> ExitCode {
         line_buf.clear();
         format_line(&line, &config, use_color, &mut line_buf);
 
+        // Filtered-out lines produce an empty buffer — skip them.
+        if line_buf.is_empty() {
+            continue;
+        }
+
         if let Err(e) = writeln!(writer, "{line_buf}") {
             if e.kind() == io::ErrorKind::BrokenPipe {
                 return ExitCode::SUCCESS;
