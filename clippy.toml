@@ -1,0 +1,13 @@
+# Clippy configuration for strict linting
+
+# Maximum allowed complexity for functions
+cognitive-complexity-threshold = 30
+
+# Maximum allowed lines for functions
+too-many-lines-threshold = 100
+
+# Maximum allowed arguments for functions
+too-many-arguments-threshold = 7
+
+# Allow certain patterns
+allow-unwrap-in-tests = true

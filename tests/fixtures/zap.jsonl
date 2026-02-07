@@ -1,0 +1,6 @@
+{"level":"info","ts":1768473000.123,"caller":"server/main.go:45","msg":"server started","port":8080}
+{"level":"debug","ts":1768473001.456,"caller":"config/loader.go:23","msg":"loading config","path":"/etc/app"}
+{"level":"warn","ts":1768473002.789,"caller":"handler/api.go:112","msg":"slow query","duration":"2.5s","query":"SELECT * FROM users"}
+{"level":"error","ts":1768473003.012,"caller":"db/conn.go:67","msg":"connection lost","error":"EOF","stacktrace":"goroutine 1 [running]:\nmain.main()"}
+{"level":"info","ts":1768473004.345,"caller":"middleware/logger.go:34","msg":"request","http":{"method":"POST","path":"/api/v1/orders","status":201}}
+{"level":"dpanic","ts":1768473005.678,"caller":"worker/process.go:89","msg":"invalid state","state":"corrupted"}

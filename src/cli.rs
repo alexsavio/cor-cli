@@ -1,0 +1,99 @@
+//! Command-line argument definitions for `cor`.
+//!
+//! Uses [`clap`] derive macros for argument parsing. All flags are documented
+//! in the contract specification at `specs/001-log-colorizer/contracts/cli.md`.
+
+use clap::{Parser, ValueEnum};
+
+/// Colorize JSON-structured log lines from stdin.
+///
+/// Reads JSON log lines from stdin, outputs colorized human-readable text
+/// to stdout. Non-JSON lines are passed through unchanged.
+#[derive(Debug, Parser)]
+#[command(name = "cor", version, about, long_about = None)]
+pub struct Cli {
+    /// Control color output.
+    ///
+    /// `auto` enables colors only when stdout is a TTY and `NO_COLOR` is unset.
+    #[arg(short = 'c', long, value_enum, default_value_t = ColorMode::Auto)]
+    pub color: ColorMode,
+
+    /// Minimum severity level to display.
+    ///
+    /// Lines below this level are suppressed. Non-JSON lines always pass through.
+    #[arg(short = 'l', long, value_parser = parse_level_arg)]
+    pub level: Option<String>,
+
+    /// Override the JSON key used for the log message field.
+    #[arg(short = 'm', long)]
+    pub message_key: Option<String>,
+
+    /// Override the JSON key used for the log level field.
+    #[arg(long)]
+    pub level_key: Option<String>,
+
+    /// Override the JSON key used for the timestamp field.
+    #[arg(short = 't', long)]
+    pub timestamp_key: Option<String>,
+
+    /// Only show these extra fields (comma-separated).
+    ///
+    /// Cannot be used with `--exclude-fields`.
+    #[arg(
+        short = 'i',
+        long,
+        value_delimiter = ',',
+        conflicts_with = "exclude_fields"
+    )]
+    pub include_fields: Option<Vec<String>>,
+
+    /// Hide these extra fields (comma-separated).
+    ///
+    /// Cannot be used with `--include-fields`.
+    #[arg(
+        short = 'e',
+        long,
+        value_delimiter = ',',
+        conflicts_with = "include_fields"
+    )]
+    pub exclude_fields: Option<Vec<String>>,
+
+    /// Output filtered lines as JSON instead of colorized text.
+    ///
+    /// Non-JSON lines are suppressed in this mode.
+    #[arg(short = 'j', long)]
+    pub json: bool,
+
+    /// Maximum character length for extra field values.
+    ///
+    /// Values exceeding this length are truncated with `…`.
+    /// Set to `0` to disable truncation.
+    #[arg(short = 'M', long, default_value_t = 120)]
+    pub max_field_length: usize,
+
+    /// Path to configuration file.
+    #[arg(long)]
+    pub config: Option<std::path::PathBuf>,
+}
+
+/// Color output mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum ColorMode {
+    /// Enable colors only when stdout is a TTY.
+    Auto,
+    /// Always enable colors.
+    Always,
+    /// Never enable colors.
+    Never,
+}
+
+/// Parse level argument as case-insensitive string.
+fn parse_level_arg(s: &str) -> Result<String, String> {
+    let lower = s.to_lowercase();
+    match lower.as_str() {
+        "trace" | "debug" | "info" | "warn" | "error" | "fatal" => Ok(lower),
+        _ => Err(format!(
+            "invalid level '{s}': expected one of trace, debug, info, warn, error, fatal"
+        )),
+    }
+}

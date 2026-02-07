@@ -18,7 +18,7 @@
   Follow-up TODOs: None
 -->
 
-# jgb Constitution
+# cor Constitution
 
 ## Core Principles
 
@@ -148,7 +148,7 @@ These gates MUST be satisfied at each development milestone.
 ## Governance
 
 This constitution is the supreme authority for development practices
-in the jgb project. All pull requests, code reviews, and design
+in the cor project. All pull requests, code reviews, and design
 decisions MUST comply with these principles.
 
 - **Supremacy**: Where other guidelines conflict with this

@@ -1,0 +1,6 @@
+{"level":30,"time":1768473000123,"pid":1234,"hostname":"web-01","msg":"server listening","port":3000}
+{"level":20,"time":1768473001456,"pid":1234,"hostname":"web-01","msg":"route registered","method":"GET","url":"/health"}
+{"level":40,"time":1768473002789,"pid":1234,"hostname":"web-01","msg":"request timeout","url":"/api/slow","elapsed":30000}
+{"level":50,"time":1768473003012,"pid":1234,"hostname":"web-01","msg":"uncaught exception","err":{"message":"ECONNREFUSED","stack":"Error: connect ECONNREFUSED"}}
+{"level":30,"time":1768473004345,"pid":1234,"hostname":"web-01","msg":"request completed","req":{"method":"GET","url":"/api/users"},"res":{"statusCode":200},"responseTime":42}
+{"level":60,"time":1768473005678,"pid":1234,"hostname":"web-01","msg":"process exiting","code":1}

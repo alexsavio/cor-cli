@@ -1,0 +1,8 @@
+{"ts":"2026-01-15T10:30:00.001Z","level":"trace","msg":"entering request handler","func":"api::get_user"}
+{"ts":"2026-01-15T10:30:00.023Z","level":"debug","msg":"cache miss, querying database","query":"SELECT * FROM users WHERE id = 42"}
+{"ts":"2026-01-15T10:30:00.087Z","level":"info","msg":"request completed","method":"GET","path":"/api/v1/users/42","status":200,"latency_ms":86}
+{"ts":"2026-01-15T10:30:01.456Z","level":"info","msg":"server listening","host":"0.0.0.0","port":8080}
+Starting background worker...
+{"ts":"2026-01-15T10:30:02.789Z","level":"warn","msg":"high memory usage detected","percent":87,"threshold":80}
+{"ts":"2026-01-15T10:30:03.012Z","level":"error","msg":"connection refused","host":"db.prod.internal","port":5432,"retries":3}
+{"ts":"2026-01-15T10:30:04.100Z","level":"fatal","msg":"disk full, shutting down","mount":"/data","available":"0B"}

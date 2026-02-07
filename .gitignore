@@ -1,0 +1,25 @@
+# Build artifacts
+/target/
+**/*.rs.bk
+
+# IDE
+.idea/
+*.iml
+.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+
+# Environment
+.env*
+!.env.example
+
+# Profiling
+*.prof*
+perf.data*
+flamegraph.svg
+
+.vscode/

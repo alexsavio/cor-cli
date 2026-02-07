@@ -1,0 +1,5 @@
+{"event":"server started","level":"info","timestamp":"2026-01-15T10:30:00.123Z","logger":"myapp","port":8080}
+{"event":"loading config","level":"debug","timestamp":"2026-01-15T10:30:01.456Z","logger":"myapp.config","path":"/etc/app.yaml"}
+{"event":"cache miss","level":"warning","timestamp":"2026-01-15T10:30:02.789Z","logger":"myapp.cache","key":"user:42","ttl":300}
+{"event":"unhandled error","level":"error","timestamp":"2026-01-15T10:30:03.012Z","logger":"myapp.handler","exc_info":"Traceback (most recent call last):\n  File \"app.py\", line 42"}
+{"event":"request processed","level":"info","timestamp":"2026-01-15T10:30:04.345Z","logger":"myapp.http","method":"POST","path":"/webhook","status":202,"duration_ms":23.5}

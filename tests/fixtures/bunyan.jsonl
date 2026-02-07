@@ -1,0 +1,5 @@
+{"name":"myapp","hostname":"web-01","pid":5678,"level":30,"msg":"server started","time":"2026-01-15T10:30:00.123Z","v":0,"port":8080}
+{"name":"myapp","hostname":"web-01","pid":5678,"level":20,"msg":"loading middleware","time":"2026-01-15T10:30:01.456Z","v":0,"middleware":"cors"}
+{"name":"myapp","hostname":"web-01","pid":5678,"level":40,"msg":"deprecated header","time":"2026-01-15T10:30:02.789Z","v":0,"header":"X-Custom-Auth"}
+{"name":"myapp","hostname":"web-01","pid":5678,"level":50,"msg":"stream error","time":"2026-01-15T10:30:03.012Z","v":0,"err":{"message":"EPIPE","name":"Error","stack":"Error: EPIPE\n    at WriteStream"}}
+{"name":"myapp","hostname":"web-01","pid":5678,"level":30,"msg":"request handled","time":"2026-01-15T10:30:04.345Z","v":0,"req":{"method":"GET","url":"/api/data"},"statusCode":200,"elapsed":15}

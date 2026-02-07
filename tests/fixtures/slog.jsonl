@@ -1,0 +1,5 @@
+{"time":"2026-01-15T10:30:00.123Z","level":"INFO","msg":"server started","port":8080,"version":"1.2.3"}
+{"time":"2026-01-15T10:30:01.456Z","level":"DEBUG","msg":"handler registered","path":"/api/v1","method":"GET"}
+{"time":"2026-01-15T10:30:02.789Z","level":"WARN","msg":"rate limit approaching","current":95,"limit":100,"source":"api-gateway"}
+{"time":"2026-01-15T10:30:03.012Z","level":"ERROR","msg":"request failed","error":"context deadline exceeded","request_id":"abc-123"}
+{"time":"2026-01-15T10:30:04.345Z","level":"INFO","msg":"graceful shutdown","signal":"SIGTERM","duration":"500ms"}

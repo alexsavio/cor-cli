@@ -1,0 +1,6 @@
+{"time":"2026-01-15T10:30:00.123Z","level":"info","msg":"server started","port":8080,"host":"0.0.0.0"}
+{"time":"2026-01-15T10:30:01.456Z","level":"debug","msg":"loading config","file":"/etc/app/config.yml"}
+{"time":"2026-01-15T10:30:02.789Z","level":"warning","msg":"deprecated API used","endpoint":"/v1/users","caller":"handler.go:42"}
+{"time":"2026-01-15T10:30:03.012Z","level":"error","msg":"connection refused","error":"dial tcp 127.0.0.1:5432: connection refused","retry":3}
+{"time":"2026-01-15T10:30:04.345Z","level":"info","msg":"request completed","method":"GET","path":"/healthz","status":200,"duration":"1.23ms"}
+{"time":"2026-01-15T10:30:05.678Z","level":"fatal","msg":"database unavailable","error":"too many connections"}
