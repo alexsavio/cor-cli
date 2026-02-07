@@ -39,7 +39,7 @@ shot() {
   bash -c "$actual_cmd" >> "$tmpraw" 2>&1
 
   # Feed the captured ANSI output to termshot (no PTY needed)
-  termshot --filename "$file" --raw-read "$tmpraw"
+  termshot --columns 80 --no-shadow --filename "$file" --raw-read "$tmpraw"
   rm -f "$tmpraw"
 }
 
