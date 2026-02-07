@@ -7,6 +7,10 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+
+- Replace deprecated black_box with std::hint::black_box
+
 ### 📚 Documentation
 
 - Fix the URL and references to the repository
@@ -15,6 +19,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ### ⚙️ Miscellaneous Tasks
 
+- Update changelog [skip ci]
 - Update changelog [skip ci]
 ## [2026.2.3] - 2026-02-07
 
