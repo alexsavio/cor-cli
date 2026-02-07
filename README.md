@@ -1,5 +1,8 @@
 # cor
 
+[![Crates.io](https://img.shields.io/crates/v/cor.svg)](https://crates.io/crates/cor)
+[![CI](https://github.com/alexsavio/cor-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/alexsavio/cor-cli/actions/workflows/ci.yml)
+
 Colorize JSON-structured log lines from stdin.
 
 `cor` reads newline-delimited JSON log entries from stdin and prints colorized,
