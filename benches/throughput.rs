@@ -1,4 +1,5 @@
 use std::fmt::Write;
+use std::hint::black_box;
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
@@ -52,8 +53,8 @@ fn bench_parse_and_format(c: &mut Criterion) {
         b.iter(|| {
             for line in &lines {
                 out.clear();
-                cor::format_line(criterion::black_box(line), &config, false, &mut out);
-                criterion::black_box(&out);
+                cor::format_line(black_box(line), &config, false, &mut out);
+                black_box(&out);
             }
         });
     });
@@ -71,7 +72,7 @@ fn bench_parse_only(c: &mut Criterion) {
     group.bench_function("parse_1k_lines", |b| {
         b.iter(|| {
             for line in &lines {
-                let _ = cor::parse_line(criterion::black_box(line), &config);
+                let _ = cor::parse_line(black_box(line), &config);
             }
         });
     });
@@ -103,8 +104,8 @@ fn bench_format_mixed_input(c: &mut Criterion) {
         b.iter(|| {
             for line in &lines {
                 out.clear();
-                cor::format_line(criterion::black_box(line), &config, false, &mut out);
-                criterion::black_box(&out);
+                cor::format_line(black_box(line), &config, false, &mut out);
+                black_box(&out);
             }
         });
     });
@@ -147,8 +148,8 @@ fn bench_line_sizes(c: &mut Criterion) {
             let mut out = String::with_capacity(line.len() * 2);
             b.iter(|| {
                 out.clear();
-                cor::format_line(criterion::black_box(line), &config, false, &mut out);
-                criterion::black_box(&out);
+                cor::format_line(black_box(line), &config, false, &mut out);
+                black_box(&out);
             });
         });
     }
@@ -171,8 +172,8 @@ fn bench_level_filtering(c: &mut Criterion) {
         b.iter(|| {
             for line in &lines {
                 out.clear();
-                cor::format_line(criterion::black_box(line), &config, false, &mut out);
-                criterion::black_box(&out);
+                cor::format_line(black_box(line), &config, false, &mut out);
+                black_box(&out);
             }
         });
     });
@@ -201,8 +202,8 @@ fn bench_embedded_json(c: &mut Criterion) {
         b.iter(|| {
             for line in &lines {
                 out.clear();
-                cor::format_line(criterion::black_box(line), &config, false, &mut out);
-                criterion::black_box(&out);
+                cor::format_line(black_box(line), &config, false, &mut out);
+                black_box(&out);
             }
         });
     });
