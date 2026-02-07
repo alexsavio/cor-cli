@@ -100,6 +100,10 @@ demo:
     echo ""
     cat assets/demo.jsonl | $BIN --color=always --max-field-length 20
 
+# Generate demo screenshots (requires termshot)
+screenshots:
+    scripts/demo-screenshots.sh
+
 # Generate coverage report
 coverage:
     cargo tarpaulin --out Html --output-dir coverage

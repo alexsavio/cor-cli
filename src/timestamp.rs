@@ -20,17 +20,15 @@ pub struct Timestamp {
 }
 
 impl Timestamp {
-    /// Format the timestamp as `HH:MM:SS.mmm` for display.
-    pub fn format_display(&self) -> String {
-        // Convert to a zoned datetime in UTC for formatting
+    /// Format the timestamp for display using the given strftime-compatible format string.
+    pub fn format_with(&self, format: &str) -> String {
         let zdt = self.value.to_zoned(jiff::tz::TimeZone::UTC);
-        format!(
-            "{:02}:{:02}:{:02}.{:03}",
-            zdt.hour(),
-            zdt.minute(),
-            zdt.second(),
-            zdt.millisecond(),
-        )
+        zdt.strftime(format).to_string()
+    }
+
+    /// Format the timestamp using the default format (`YYYY-MM-DDTHH:MM:SS.mmm`).
+    pub fn format_display(&self) -> String {
+        self.format_with("%Y-%m-%dT%H:%M:%S%.3f")
     }
 
     /// Parse a timestamp from a [`serde_json::Value`].
@@ -155,7 +153,7 @@ mod tests {
     fn test_parse_iso8601() {
         let val = json!("2026-01-15T10:30:00.123Z");
         let ts = Timestamp::from_json_value(&val).unwrap();
-        assert_eq!(ts.format_display(), "10:30:00.123");
+        assert_eq!(ts.format_display(), "2026-01-15T10:30:00.123");
     }
 
     #[test]
@@ -163,7 +161,7 @@ mod tests {
         let val = json!("2026-01-15T12:30:00.000+02:00");
         let ts = Timestamp::from_json_value(&val).unwrap();
         // 12:30 +02:00 = 10:30 UTC
-        assert_eq!(ts.format_display(), "10:30:00.000");
+        assert_eq!(ts.format_display(), "2026-01-15T10:30:00.000");
     }
 
     #[test]
@@ -171,35 +169,35 @@ mod tests {
         // 2026-01-15 10:30:00 UTC = 1768473000
         let val = json!(1_768_473_000);
         let ts = Timestamp::from_json_value(&val).unwrap();
-        assert_eq!(ts.format_display(), "10:30:00.000");
+        assert_eq!(ts.format_display(), "2026-01-15T10:30:00.000");
     }
 
     #[test]
     fn test_parse_epoch_seconds_float() {
         let val = json!(1_768_473_000.123);
         let ts = Timestamp::from_json_value(&val).unwrap();
-        assert!(ts.format_display().starts_with("10:30:00."));
+        assert!(ts.format_display().starts_with("2026-01-15T10:30:00."));
     }
 
     #[test]
     fn test_parse_epoch_milliseconds() {
         let val = json!(1_768_473_000_123_i64);
         let ts = Timestamp::from_json_value(&val).unwrap();
-        assert_eq!(ts.format_display(), "10:30:00.123");
+        assert_eq!(ts.format_display(), "2026-01-15T10:30:00.123");
     }
 
     #[test]
     fn test_parse_epoch_nanoseconds() {
         let val = json!(1_768_473_000_123_000_000_i64);
         let ts = Timestamp::from_json_value(&val).unwrap();
-        assert_eq!(ts.format_display(), "10:30:00.123");
+        assert_eq!(ts.format_display(), "2026-01-15T10:30:00.123");
     }
 
     #[test]
     fn test_parse_datetime_no_tz() {
         let val = json!("2026-01-15 10:30:00");
         let ts = Timestamp::from_json_value(&val).unwrap();
-        assert_eq!(ts.format_display(), "10:30:00.000");
+        assert_eq!(ts.format_display(), "2026-01-15T10:30:00.000");
     }
 
     #[test]
@@ -207,5 +205,49 @@ mod tests {
         assert!(Timestamp::from_json_value(&json!("not-a-timestamp")).is_none());
         assert!(Timestamp::from_json_value(&json!(true)).is_none());
         assert!(Timestamp::from_json_value(&json!(null)).is_none());
+    }
+
+    #[test]
+    fn test_format_with_custom() {
+        let val = json!("2026-01-15T10:30:00.123Z");
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        assert_eq!(ts.format_with("%H:%M:%S"), "10:30:00");
+    }
+
+    #[test]
+    fn test_format_with_full_datetime() {
+        let val = json!("2026-01-15T10:30:00.123Z");
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        assert_eq!(ts.format_with("%Y-%m-%d %H:%M:%S"), "2026-01-15 10:30:00");
+    }
+
+    #[test]
+    fn test_format_display_uses_default_format() {
+        let val = json!("2026-01-15T10:30:00.123Z");
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        // format_display() should match format_with() using the default format
+        assert_eq!(ts.format_display(), ts.format_with("%Y-%m-%dT%H:%M:%S%.3f"));
+    }
+
+    #[test]
+    fn test_display_trait() {
+        let val = json!("2026-01-15T10:30:00.123Z");
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        // Display trait uses format_display()
+        assert_eq!(format!("{ts}"), ts.format_display());
+    }
+
+    #[test]
+    fn test_epoch_zero() {
+        let val = json!(0);
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        assert_eq!(ts.format_display(), "1970-01-01T00:00:00.000");
+    }
+
+    #[test]
+    fn test_parse_datetime_with_fractional_seconds() {
+        let val = json!("2026-01-15 10:30:00.456");
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        assert!(ts.format_display().starts_with("2026-01-15T10:30:00."));
     }
 }

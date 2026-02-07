@@ -8,9 +8,9 @@ human-readable output to stdout. Non-JSON lines pass through unchanged.
 ```text
 $ echo '{"level":"info","ts":"2026-01-15T10:30:01.456Z","msg":"server started","host":"0.0.0.0","port":8080}' | cor
 
-10:30:01.456   INFO: server started
-                     host: 0.0.0.0
-                     port: 8080
+2026-01-15T10:30:01.456   INFO: server started
+                                host: 0.0.0.0
+                                port: 8080
 ```
 
 ## Demo
@@ -112,12 +112,12 @@ my-app | cor --color=always | less -R
 ## Output format
 
 ```text
-HH:MM:SS.mmm  LEVEL: message
-                          key: value
-                    other_key: other_value
+YYYY-MM-DDTHH:MM:SS.mmm  LEVEL: message
+                                      key: value
+                                other_key: other_value
 ```
 
-- **Timestamp** — bold `HH:MM:SS.mmm` in UTC
+- **Timestamp** — bold `YYYY-MM-DDTHH:MM:SS.mmm` in UTC
 - **Level** — colored and bold, right-justified in a 5-char field
   - <span style="color:cyan">TRACE</span> · <span style="color:blue">DEBUG</span> · <span style="color:green"> INFO</span> · <span style="color:yellow"> WARN</span> · <span style="color:red">ERROR</span> · <span style="color:magenta">FATAL</span>
 - **Message** — plain text
@@ -188,10 +188,14 @@ level = "info"
 color = "auto"
 
 # Timestamp display format (strftime)
-timestamp_format = "%H:%M:%S%.3f"
+timestamp_format = "%Y-%m-%dT%H:%M:%S%.3f"
 
 # Max field value length (0 = unlimited)
 max_field_length = 120
+
+# Examples of custom timestamp formats:
+# timestamp_format = "%H:%M:%S%.3f"    # time only with milliseconds
+# timestamp_format = "%H:%M:%S"        # time only, no milliseconds
 
 # Override field key names
 [keys]

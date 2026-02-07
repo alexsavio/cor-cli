@@ -97,7 +97,7 @@ fn format_record(
 ) {
     // Timestamp (bold when colored)
     if let Some(ref ts) = record.timestamp {
-        let ts_str = ts.format_display();
+        let ts_str = ts.format_with(&config.timestamp_format);
         if use_color {
             let _ = write!(out, "{}  ", ts_str.bold());
         } else {
@@ -326,5 +326,139 @@ mod tests {
         out.clear();
         format_line("plain text", &config, false, &mut out);
         assert_eq!(out, "plain text");
+    }
+
+    #[test]
+    fn test_format_line_colorized_output() {
+        let config = Config::default();
+        let mut out = String::new();
+        let line = r#"{"level":"info","msg":"hello"}"#;
+        format_line(line, &config, true, &mut out);
+        // Should contain ANSI escape sequences
+        assert!(
+            out.contains("\x1b["),
+            "expected ANSI escapes in colorized output"
+        );
+        // Content should still be present
+        assert!(out.contains("hello"));
+    }
+
+    #[test]
+    fn test_exclude_fields() {
+        let config = Config {
+            exclude_fields: Some(vec!["port".to_string()]),
+            ..Config::default()
+        };
+        let mut out = String::new();
+        let line = r#"{"level":"info","msg":"hello","port":8080,"host":"localhost"}"#;
+        format_line(line, &config, false, &mut out);
+        assert!(
+            !out.contains("port"),
+            "excluded field 'port' should not appear"
+        );
+        assert!(
+            out.contains("host"),
+            "non-excluded field 'host' should appear"
+        );
+    }
+
+    #[test]
+    fn test_include_fields() {
+        let config = Config {
+            include_fields: Some(vec!["port".to_string()]),
+            ..Config::default()
+        };
+        let mut out = String::new();
+        let line = r#"{"level":"info","msg":"hello","port":8080,"host":"localhost"}"#;
+        format_line(line, &config, false, &mut out);
+        assert!(out.contains("port"), "included field 'port' should appear");
+        assert!(
+            !out.contains("host"),
+            "non-included field 'host' should not appear"
+        );
+    }
+
+    #[test]
+    fn test_max_field_length_applied_in_format_line() {
+        let config = Config {
+            max_field_length: 10,
+            ..Config::default()
+        };
+        let mut out = String::new();
+        let long_value = "a".repeat(30);
+        let line = format!(r#"{{"level":"info","msg":"hi","data":"{long_value}"}}"#);
+        format_line(&line, &config, false, &mut out);
+        // The truncated value should end with '…' and be shorter than the original
+        assert!(out.contains('…'), "long field value should be truncated");
+        assert!(!out.contains(&long_value), "full value should not appear");
+    }
+
+    #[test]
+    fn test_timestamp_format_applied_in_format_line() {
+        let config = Config {
+            timestamp_format: "%H:%M:%S".to_string(),
+            ..Config::default()
+        };
+        let mut out = String::new();
+        let line = r#"{"level":"info","msg":"hi","time":"2026-01-15T10:30:00.123Z"}"#;
+        format_line(line, &config, false, &mut out);
+        assert!(
+            out.contains("10:30:00"),
+            "custom timestamp format should be applied"
+        );
+        // Should NOT contain a date since the format is time-only
+        assert!(
+            !out.contains("2026-01-15"),
+            "date should not appear with time-only format"
+        );
+    }
+
+    #[test]
+    fn test_null_level_treated_as_absent() {
+        let config = Config::default();
+        let mut out = String::new();
+        let line = r#"{"level":null,"msg":"hello"}"#;
+        format_line(line, &config, false, &mut out);
+        // Should use blank badge (5 spaces) since level is null
+        assert!(
+            out.contains("     :"),
+            "null level should produce blank badge"
+        );
+        assert!(out.contains("hello"));
+    }
+
+    #[test]
+    fn test_null_message_treated_as_absent() {
+        let config = Config::default();
+        let mut out = String::new();
+        let line = r#"{"level":"info","msg":null,"port":8080}"#;
+        format_line(line, &config, false, &mut out);
+        assert!(out.contains("INFO"));
+        assert!(out.contains("port"));
+    }
+
+    #[test]
+    fn test_format_value_bool() {
+        let val = serde_json::json!(true);
+        assert_eq!(format_value(&val), "true");
+        let val = serde_json::json!(false);
+        assert_eq!(format_value(&val), "false");
+    }
+
+    #[test]
+    fn test_format_value_object() {
+        let val = serde_json::json!({"a": 1});
+        assert_eq!(format_value(&val), r#"{"a":1}"#);
+    }
+
+    #[test]
+    fn test_embedded_json_no_color() {
+        let config = Config::default();
+        let mut out = String::new();
+        let line = r#"2026-02-06 prefix {"level":"debug","msg":"check"}"#;
+        format_line(line, &config, false, &mut out);
+        assert!(out.contains("DEBUG"));
+        assert!(out.contains("check"));
+        assert!(out.contains("2026-02-06 prefix"));
     }
 }

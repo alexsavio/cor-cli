@@ -56,7 +56,7 @@ impl Default for Config {
             exclude_fields: None,
             json_output: false,
             max_field_length: 120,
-            timestamp_format: "%H:%M:%S%.3f".to_string(),
+            timestamp_format: "%Y-%m-%dT%H:%M:%S%.3f".to_string(),
             level_aliases: None,
         }
     }
@@ -210,6 +210,7 @@ mod tests {
         assert!(config.min_level.is_none());
         assert!(config.message_key.is_none());
         assert_eq!(config.max_field_length, 120);
+        assert_eq!(config.timestamp_format, "%Y-%m-%dT%H:%M:%S%.3f");
         assert!(!config.json_output);
     }
 
@@ -266,5 +267,53 @@ mod tests {
         assert_eq!(config.message_key.as_deref(), Some("event"));
         assert_eq!(config.max_field_length, 80);
         assert!(config.level_aliases.is_some());
+    }
+
+    #[test]
+    fn test_file_config_load_nonexistent() {
+        let path = PathBuf::from("/tmp/cor-test-nonexistent-config.toml");
+        let result = FileConfig::load(&path);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("cannot read config file"),
+            "expected config error, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_file_config_load_invalid_toml() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        std::fs::write(&path, "this is not valid [[ toml").unwrap();
+        let result = FileConfig::load(&path);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("config file error"),
+            "expected TOML parse error, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_apply_file_config_partial() {
+        // Only set some fields; others remain as defaults
+        let mut config = Config::default();
+        let file_config = FileConfig {
+            color: None,
+            level: None,
+            timestamp_format: Some("%H:%M".to_string()),
+            max_field_length: None,
+            keys: None,
+            levels: None,
+            colors: None,
+        };
+        config.apply_file_config(file_config);
+        assert_eq!(config.color_mode, ColorMode::Auto);
+        assert!(config.min_level.is_none());
+        assert_eq!(config.timestamp_format, "%H:%M");
+        assert_eq!(config.max_field_length, 120);
     }
 }

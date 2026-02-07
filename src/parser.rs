@@ -295,4 +295,100 @@ mod tests {
             _ => panic!("Expected Raw for invalid embedded JSON"),
         }
     }
+
+    #[test]
+    fn test_flatten_deeply_nested_objects_kept_as_json() {
+        // 2-level nested objects should be kept as compact JSON, not further flattened
+        let line =
+            r#"{"level":"info","msg":"req","http":{"request":{"method":"GET","path":"/api"}}}"#;
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::Json(record) => {
+                // The nested object is flattened one level: http.request exists
+                let val = record
+                    .extra
+                    .get("http.request")
+                    .expect("http.request should exist");
+                // The value should be a compact JSON object (not further flattened)
+                assert!(val.is_object(), "nested value should remain as JSON object");
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_null_level_in_json() {
+        let line = r#"{"level":null,"msg":"hello"}"#;
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::Json(record) => {
+                assert!(record.level.is_none(), "null level should parse as None");
+                assert_eq!(record.message.as_deref(), Some("hello"));
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_null_message_in_json() {
+        let line = r#"{"level":"info","msg":null}"#;
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.level, Some(crate::level::Level::Info));
+                // null message via alias lookup returns Some("") due to unwrap_or_default
+                assert_eq!(record.message.as_deref(), Some(""));
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_null_timestamp_in_json() {
+        let line = r#"{"level":"info","msg":"hi","time":null}"#;
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::Json(record) => {
+                assert!(
+                    record.timestamp.is_none(),
+                    "null timestamp should parse as None"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_whitespace_only_is_raw() {
+        match parse_line("   \t  ", &default_config()) {
+            LineKind::Raw => {}
+            _ => panic!("Expected Raw for whitespace-only line"),
+        }
+    }
+
+    #[test]
+    fn test_message_as_number() {
+        // Non-string message values should be converted to string
+        let line = r#"{"level":"info","msg":42}"#;
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.message.as_deref(), Some("42"));
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_arrays_in_extra_fields_preserved() {
+        let line = r#"{"level":"info","msg":"hi","tags":["a","b"]}"#;
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::Json(record) => {
+                let tags = record.extra.get("tags").expect("tags should exist");
+                assert!(tags.is_array(), "arrays should be preserved as-is");
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
 }

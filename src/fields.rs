@@ -133,4 +133,31 @@ mod tests {
         map.insert("unknown".to_string(), json!("hello"));
         assert_eq!(find_key(&map, MESSAGE_ALIASES), None);
     }
+
+    #[test]
+    fn test_find_and_remove_empty_aliases() {
+        let mut map = serde_json::Map::new();
+        map.insert("foo".to_string(), json!("bar"));
+        let result = find_and_remove(&mut map, &[]);
+        assert!(result.is_none());
+        // Map unchanged
+        assert!(map.contains_key("foo"));
+    }
+
+    #[test]
+    fn test_find_key_empty_map() {
+        let map = serde_json::Map::new();
+        assert_eq!(find_key(&map, TIMESTAMP_ALIASES), None);
+    }
+
+    #[test]
+    fn test_find_and_remove_returns_value() {
+        let mut map = serde_json::Map::new();
+        map.insert("severity".to_string(), json!("error"));
+        let result = find_and_remove(&mut map, LEVEL_ALIASES);
+        let (key, val) = result.unwrap();
+        assert_eq!(key, "severity");
+        assert_eq!(val, json!("error"));
+        assert!(map.is_empty());
+    }
 }

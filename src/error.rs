@@ -27,3 +27,34 @@ pub enum CorError {
     #[error("config file error: {0}")]
     Toml(#[from] toml::de::Error),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_error_display() {
+        let err = CorError::Config("bad flag".into());
+        assert_eq!(err.to_string(), "configuration error: bad flag");
+    }
+
+    #[test]
+    fn test_io_error_display() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file missing");
+        let err = CorError::Io(io_err);
+        assert_eq!(err.to_string(), "I/O error: file missing");
+    }
+
+    #[test]
+    fn test_parse_error_display() {
+        let err = CorError::Parse("unexpected token".into());
+        assert_eq!(err.to_string(), "parse error: unexpected token");
+    }
+
+    #[test]
+    fn test_io_error_from_conversion() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+        let err: CorError = io_err.into();
+        assert!(matches!(err, CorError::Io(_)));
+    }
+}

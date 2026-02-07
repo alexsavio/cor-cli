@@ -97,3 +97,29 @@ fn parse_level_arg(s: &str) -> Result<String, String> {
         )),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_level_arg_valid() {
+        assert_eq!(parse_level_arg("info").unwrap(), "info");
+        assert_eq!(parse_level_arg("INFO").unwrap(), "info");
+        assert_eq!(parse_level_arg("Warn").unwrap(), "warn");
+        assert_eq!(parse_level_arg("TRACE").unwrap(), "trace");
+        assert_eq!(parse_level_arg("debug").unwrap(), "debug");
+        assert_eq!(parse_level_arg("error").unwrap(), "error");
+        assert_eq!(parse_level_arg("fatal").unwrap(), "fatal");
+    }
+
+    #[test]
+    fn test_parse_level_arg_invalid() {
+        let err = parse_level_arg("verbose").unwrap_err();
+        assert!(err.contains("invalid level"));
+        let err = parse_level_arg("").unwrap_err();
+        assert!(err.contains("invalid level"));
+        let err = parse_level_arg("critical").unwrap_err();
+        assert!(err.contains("invalid level"));
+    }
+}
