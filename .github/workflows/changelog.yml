@@ -40,7 +40,3 @@ jobs:
           git add CHANGELOG.md
           git commit -m "chore: update changelog [skip ci]"
           git push
-          delete-branch: true
-          labels: |
-            documentation
-            automated

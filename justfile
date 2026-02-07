@@ -133,7 +133,7 @@ publish: check
 
 # Show current version
 version:
-    @grep '^version' Cargo.toml | head -1 | cut -d'"' -f2
+    @sed -n '/^\[package\]/,/^\[/{s/^version = "\(.*\)"/\1/p;}' Cargo.toml
 
 # Generate/update CHANGELOG.md
 changelog:
@@ -150,7 +150,7 @@ _next-version:
     YEAR=$(date +%Y)
     MONTH=$(date +%-m)
     PREFIX="${YEAR}.${MONTH}"
-    CURRENT=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
+    CURRENT=$(sed -n '/^\[package\]/,/^\[/{s/^version = "\(.*\)"/\1/p;}' Cargo.toml)
     if [[ "$CURRENT" == ${PREFIX}.* ]]; then
         MICRO=${CURRENT##*.}
         echo "${PREFIX}.$((MICRO + 1))"
@@ -166,8 +166,8 @@ release VERSION:
 
     echo "📦 Releasing v{{VERSION}} (CalVer)"
 
-    # Update Cargo.toml version
-    sed -i '' 's/^version = ".*"/version = "{{VERSION}}"/' Cargo.toml
+    # Update Cargo.toml version (only in [package] section)
+    sed -i '' '/^\[package\]/,/^\[/{s/^version = ".*"/version = "{{VERSION}}"/;}' Cargo.toml
 
     # Ensure it compiles and passes checks
     just check
