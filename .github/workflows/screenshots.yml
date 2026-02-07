@@ -1,0 +1,50 @@
+name: Update Screenshots
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  screenshots:
+    name: Generate Screenshots
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install termshot
+        run: |
+          curl --silent --location \
+            "https://raw.githubusercontent.com/homeport/termshot/main/hack/download.sh" \
+            | bash
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Generate screenshots
+        run: bash scripts/demo-screenshots.sh
+
+      - name: Check for changes
+        id: diff
+        run: |
+          git diff --quiet assets/demo/ && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create Pull Request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: "chore: update demo screenshots"
+          title: "chore: update demo screenshots"
+          body: |
+            Auto-generated screenshot update.
+
+            Triggered by ${{ github.sha }}.
+          branch: chore/update-screenshots
+          delete-branch: true
+          labels: documentation
