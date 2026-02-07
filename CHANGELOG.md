@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.PATCH).
 
+## [Unreleased]
+
+### 📚 Documentation
+
+- Fix the URL and references to the repository
+- Fix the URL to the images in the README
+- Add tags to the README
+
+### ⚙️ Miscellaneous Tasks
+
+- Update changelog [skip ci]
 ## [2026.2.3] - 2026-02-07
 
 ### 🐛 Bug Fixes
