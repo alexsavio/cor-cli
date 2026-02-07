@@ -1,5 +1,5 @@
 # cor — JSON log colorizer
-# https://github.com/alexsavio/jgb
+# https://github.com/alexsavio/cor-cli
 
 # Build the project
 build:

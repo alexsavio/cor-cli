@@ -76,8 +76,8 @@ cargo install cor
 ### From source
 
 ```sh
-git clone https://github.com/alexsavio/jgb.git
-cd jgb
+git clone https://github.com/alexsavio/cor-cli.git
+cd cor-cli
 cargo install --path .
 ```
 
