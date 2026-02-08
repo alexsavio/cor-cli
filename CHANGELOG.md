@@ -21,6 +21,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 - Update changelog [skip ci]
 - Update changelog [skip ci]
+- Update changelog [skip ci]
+- Ensure markdown files are well formatted
 
 ## [2026.2.3] - 2026-02-07
 
