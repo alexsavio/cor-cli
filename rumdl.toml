@@ -1,0 +1,10 @@
+[global]
+# Disable rules that don't suit this project
+disable = [
+    # Allow longer lines (code examples, tables, badge URLs)
+    "MD013",
+    # Allow inline HTML (colored level badges in README)
+    "MD033",
+    # Allow undefined references in CHANGELOG (git-cliff generates them)
+    "MD052",
+]

@@ -31,6 +31,12 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
+      - name: Install rumdl
+        run: cargo install rumdl
+
+      - name: Check Markdown
+        run: rumdl check *.md
+
       - name: Clippy
         run: cargo clippy -- -D warnings
 

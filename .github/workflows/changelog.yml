@@ -32,6 +32,12 @@ jobs:
       - name: Generate changelog
         run: git cliff -o CHANGELOG.md
 
+      - name: Install rumdl
+        run: cargo install rumdl
+
+      - name: Format changelog
+        run: rumdl fmt CHANGELOG.md
+
       - name: Commit updated changelog
         run: |
           git diff --quiet CHANGELOG.md && exit 0

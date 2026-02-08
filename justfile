@@ -40,10 +40,12 @@ lint-fix:
 # Format code
 format:
     cargo fmt
+    rumdl fmt *.md
 
 # Check formatting without modifying files
 format-check:
     cargo fmt -- --check
+    rumdl check *.md
 
 # Run all quality checks
 check: format-check lint test
@@ -118,6 +120,7 @@ dev-tools:
     cargo install cargo-tarpaulin
     cargo install cargo-audit
     cargo install git-cliff
+    cargo install rumdl
 
 # Publish to crates.io (dry-run first)
 publish-dry:
@@ -174,6 +177,7 @@ release VERSION:
 
     # Update CHANGELOG.md
     git-cliff --tag "v{{VERSION}}" -o CHANGELOG.md
+    rumdl fmt CHANGELOG.md
 
     # Update Cargo.lock
     cargo check
