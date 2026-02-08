@@ -6,6 +6,7 @@ rust-version = "1.92"
 description = "Colorize JSON-structured log lines from stdin"
 license = "MIT"
 repository = "https://github.com/alexsavio/cor-cli"
+readme = "README.md"
 keywords = ["json", "log", "color", "cli", "structured-logging"]
 categories = ["command-line-utilities", "development-tools"]
 
