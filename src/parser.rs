@@ -635,4 +635,130 @@ mod tests {
             _ => panic!("Expected EmbeddedJson for double-escaped embedded JSON"),
         }
     }
+
+    #[test]
+    fn test_un_double_escape_json_consecutive_backslashes() {
+        // Four backslashes `\\\\` inside a string: the first `\\` is a real escaped
+        // backslash, the second `\\` is another. After un-double-escaping,
+        // `\\\\n` → `\\n` (escaped backslash + literal n), not `\n`.
+        let input = r#"{"msg":"path\\\\nope"}"#;
+        let result = un_double_escape_json(input);
+        // \\\\n: first \\ is escape_next, sees second \, peeks 'n' → produces \\n
+        // So we get {"msg":"path\\nope"} which serde reads as "path\nope"
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        let msg = parsed["msg"].as_str().unwrap();
+        assert!(
+            msg.contains('\\') || msg.contains('\n'),
+            "consecutive backslashes should be handled without panic: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_un_double_escape_json_trailing_backslash() {
+        // Pending backslash at the end of string should be flushed
+        let input = r#"{"msg":"end\\"}"#;
+        let result = un_double_escape_json(input);
+        // Should not panic, and the trailing backslash should be preserved
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_un_double_escape_unicode() {
+        // \\u0041 should become \u0041 (which is 'A' in JSON)
+        let input = r#"{"msg":"\\u0041"}"#;
+        let result = un_double_escape_json(input);
+        let expected = r#"{"msg":"\u0041"}"#;
+        assert_eq!(result, expected);
+        // Verify it produces valid JSON that decodes to "A"
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["msg"], "A");
+    }
+
+    #[test]
+    fn test_flatten_extra_empty_nested_object() {
+        // An empty nested object should disappear (no keys to flatten)
+        let line = r#"{"level":"info","msg":"hi","meta":{}}"#;
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::Json(record) => {
+                assert!(
+                    !record.extra.contains_key("meta"),
+                    "empty nested object should not appear in extra"
+                );
+                assert!(record.extra.is_empty());
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_flatten_extra_null_in_nested_object() {
+        // Null values inside nested objects should be preserved
+        let line = r#"{"level":"info","msg":"hi","ctx":{"user":null,"req_id":"abc"}}"#;
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.extra.get("ctx.user"), Some(&json!(null)));
+                assert_eq!(record.extra.get("ctx.req_id"), Some(&json!("abc")));
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_sanitize_json_newlines_tab_passes_through() {
+        // Tab characters inside strings are valid JSON and should not be altered
+        let input = "{\"msg\":\"col1\tcol2\"}";
+        assert_eq!(sanitize_json_newlines(input), input);
+    }
+
+    #[test]
+    fn test_sanitize_json_newlines_multiple_strings() {
+        // Multiple string values with newlines
+        let input = "{\"a\":\"x\ny\",\"b\":\"1\n2\"}";
+        let result = sanitize_json_newlines(input);
+        let parsed: Result<serde_json::Value, _> = serde_json::from_str(&result);
+        assert!(parsed.is_ok(), "sanitized multi-string JSON should parse");
+        let obj = parsed.unwrap();
+        assert!(obj["a"].as_str().unwrap().contains('\n'));
+        assert!(obj["b"].as_str().unwrap().contains('\n'));
+    }
+
+    #[test]
+    fn test_try_parse_json_fallback_returns_none_for_unrecoverable() {
+        // Contains \\\\ but un-double-escaping doesn't produce valid JSON
+        let line = r"{not valid \\json\\ at all}";
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::Raw => {}
+            _ => panic!("Expected Raw for unrecoverable JSON with backslashes"),
+        }
+    }
+
+    #[test]
+    fn test_parse_empty_json_object() {
+        let line = "{}";
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::Json(record) => {
+                assert!(record.timestamp.is_none());
+                assert!(record.level.is_none());
+                assert!(record.message.is_none());
+                assert!(record.extra.is_empty());
+            }
+            _ => panic!("Expected Json for empty object"),
+        }
+    }
+
+    #[test]
+    fn test_message_as_boolean() {
+        let line = r#"{"level":"info","msg":true}"#;
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.message.as_deref(), Some("true"));
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
 }

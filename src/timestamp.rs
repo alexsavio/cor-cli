@@ -250,4 +250,77 @@ mod tests {
         let ts = Timestamp::from_json_value(&val).unwrap();
         assert!(ts.format_display().starts_with("2026-01-15T10:30:00."));
     }
+
+    #[test]
+    fn test_epoch_boundary_seconds_to_milliseconds() {
+        // Exactly 1_000_000_000_000 should be treated as milliseconds, not seconds
+        let val = json!(1_000_000_000_000_i64);
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        // 1e12 ms = 2001-09-09T01:46:40Z (milliseconds path)
+        assert!(ts.format_display().starts_with("2001-09-09"));
+
+        // One below: 999_999_999_999 would be treated as seconds, but that's
+        // ~31688 years which overflows jiff's representable range → None
+        let val = json!(999_999_999_999_i64);
+        assert!(
+            Timestamp::from_json_value(&val).is_none(),
+            "seconds value near 1e12 exceeds jiff timestamp range"
+        );
+
+        // A realistic seconds value still works
+        let val = json!(1_700_000_000_i64);
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        assert!(ts.format_display().starts_with("2023-"));
+    }
+
+    #[test]
+    fn test_epoch_boundary_milliseconds_to_nanoseconds() {
+        // Exactly 1_000_000_000_000_000 should be treated as nanoseconds
+        let val = json!(1_000_000_000_000_000_i64);
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        // 1e15 ns = 1e6 seconds ≈ 1970-01-12
+        assert!(ts.format_display().starts_with("1970-01-12"));
+
+        // One below: 999_999_999_999_999 would be treated as milliseconds, but
+        // that's ~31688 years which overflows jiff's representable range → None
+        let val = json!(999_999_999_999_999_i64);
+        assert!(
+            Timestamp::from_json_value(&val).is_none(),
+            "milliseconds value near 1e15 exceeds jiff timestamp range"
+        );
+
+        // A realistic nanoseconds value works
+        let val = json!(1_700_000_000_000_000_000_i64);
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        assert!(ts.format_display().starts_with("2023-"));
+    }
+
+    #[test]
+    fn test_negative_epoch_seconds() {
+        // Before Unix epoch: 1969-12-31T23:59:59Z
+        let val = json!(-1);
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        assert!(ts.format_display().starts_with("1969-12-31"));
+    }
+
+    #[test]
+    fn test_epoch_float_boundary() {
+        // Float value at exactly 1e12 should take the milliseconds branch
+        let val = json!(1_000_000_000_000.0_f64);
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        // 1e12 ms ≈ 2001-09-09
+        assert!(ts.format_display().starts_with("2001-09-09"));
+
+        // Float value below 1e12 but too large for seconds → overflows jiff range
+        let val = json!(999_999_999_999.5_f64);
+        assert!(
+            Timestamp::from_json_value(&val).is_none(),
+            "float seconds near 1e12 exceeds jiff timestamp range"
+        );
+
+        // A realistic float seconds value works (fractional seconds preserved)
+        let val = json!(1_700_000_000.5_f64);
+        let ts = Timestamp::from_json_value(&val).unwrap();
+        assert!(ts.format_display().starts_with("2023-"));
+    }
 }

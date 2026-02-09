@@ -475,4 +475,96 @@ mod tests {
         assert!(out.contains("check"));
         assert!(out.contains("2026-02-06 prefix"));
     }
+
+    #[test]
+    fn test_truncate_value_multibyte_characters() {
+        // Emoji characters are multi-byte but count as 1 char each
+        let s = "Hello \u{1F600}\u{1F600}\u{1F600} world";
+        let result = truncate_value(s, 8);
+        // Should truncate after 8 chars: "Hello 😀😀" + "…"
+        assert!(result.ends_with('…'));
+        assert_eq!(result.chars().count(), 9); // 8 + '…'
+    }
+
+    #[test]
+    fn test_truncate_value_cjk_characters() {
+        let s = "\u{4F60}\u{597D}\u{4E16}\u{754C}"; // 你好世界
+        let result = truncate_value(s, 2);
+        assert_eq!(result, "\u{4F60}\u{597D}\u{2026}"); // 你好…
+    }
+
+    #[test]
+    fn test_format_line_no_timestamp_no_level_no_message() {
+        let config = Config::default();
+        let mut out = String::new();
+        let line = r#"{"port":8080,"host":"localhost"}"#;
+        format_line(line, &config, false, &mut out);
+        // Should produce a blank badge and only extra fields
+        assert!(out.contains("     :"), "should have blank badge");
+        assert!(out.contains("port: 8080"));
+        assert!(out.contains("host: localhost"));
+    }
+
+    #[test]
+    fn test_level_filtering_embedded_json() {
+        let config = Config {
+            min_level: Some(Level::Error),
+            ..Config::default()
+        };
+
+        // Info-level embedded JSON should be filtered
+        let mut out = String::new();
+        format_line(
+            r#"prefix {"level":"info","msg":"hello"}"#,
+            &config,
+            false,
+            &mut out,
+        );
+        assert!(out.is_empty(), "info should be filtered when min=error");
+
+        // Error-level embedded JSON should pass
+        out.clear();
+        format_line(
+            r#"prefix {"level":"error","msg":"fail"}"#,
+            &config,
+            false,
+            &mut out,
+        );
+        assert!(out.contains("fail"), "error should pass when min=error");
+    }
+
+    #[test]
+    fn test_format_line_json_mode_embedded() {
+        // --json mode with embedded JSON should output only the JSON part
+        let config = Config {
+            json_output: true,
+            ..Config::default()
+        };
+        let mut out = String::new();
+        format_line(
+            r#"prefix {"level":"info","msg":"hello"}"#,
+            &config,
+            false,
+            &mut out,
+        );
+        // Should output the raw JSON, not the prefix
+        assert!(out.starts_with('{'));
+        assert!(out.contains("\"level\":\"info\""));
+    }
+
+    #[test]
+    fn test_include_nonexistent_field() {
+        // Including a field that doesn't exist should hide all extra fields
+        let config = Config {
+            include_fields: Some(vec!["nonexistent".to_string()]),
+            ..Config::default()
+        };
+        let mut out = String::new();
+        let line = r#"{"level":"info","msg":"hello","port":8080}"#;
+        format_line(line, &config, false, &mut out);
+        assert!(
+            !out.contains("port"),
+            "non-included fields should be hidden"
+        );
+    }
 }

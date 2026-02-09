@@ -336,4 +336,78 @@ mod tests {
         assert_eq!(config.max_field_length, 120);
         assert_eq!(config.line_gap, 1);
     }
+
+    #[test]
+    fn test_apply_file_config_invalid_level_aliases_skipped() {
+        // Level aliases mapping to unrecognized level strings should be silently skipped
+        let mut config = Config::default();
+        let file_config = FileConfig {
+            color: None,
+            level: None,
+            timestamp_format: None,
+            max_field_length: None,
+            line_gap: None,
+            keys: None,
+            levels: Some({
+                let mut m = HashMap::new();
+                m.insert("verbose".to_string(), "debug".to_string()); // valid
+                m.insert("custom".to_string(), "nonexistent_level".to_string()); // invalid
+                m
+            }),
+            colors: None,
+        };
+        config.apply_file_config(file_config);
+        let aliases = config.level_aliases.unwrap();
+        assert_eq!(aliases.get("verbose"), Some(&Level::Debug));
+        assert!(
+            !aliases.contains_key("custom"),
+            "invalid level alias should be silently skipped"
+        );
+    }
+
+    #[test]
+    fn test_apply_file_config_all_invalid_aliases_produces_none() {
+        // If all level aliases are invalid, level_aliases should remain None
+        let mut config = Config::default();
+        let file_config = FileConfig {
+            color: None,
+            level: None,
+            timestamp_format: None,
+            max_field_length: None,
+            line_gap: None,
+            keys: None,
+            levels: Some({
+                let mut m = HashMap::new();
+                m.insert("foo".to_string(), "not_a_level".to_string());
+                m
+            }),
+            colors: None,
+        };
+        config.apply_file_config(file_config);
+        assert!(
+            config.level_aliases.is_none(),
+            "all-invalid aliases should leave level_aliases as None"
+        );
+    }
+
+    #[test]
+    fn test_apply_file_config_unrecognized_color_defaults_to_auto() {
+        let mut config = Config::default();
+        let file_config = FileConfig {
+            color: Some("invalid_value".to_string()),
+            level: None,
+            timestamp_format: None,
+            max_field_length: None,
+            line_gap: None,
+            keys: None,
+            levels: None,
+            colors: None,
+        };
+        config.apply_file_config(file_config);
+        assert_eq!(
+            config.color_mode,
+            ColorMode::Auto,
+            "unrecognized color value should default to Auto"
+        );
+    }
 }

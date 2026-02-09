@@ -229,4 +229,53 @@ mod tests {
             Some(Level::Debug)
         );
     }
+
+    #[test]
+    fn test_from_numeric_exact_boundaries() {
+        // Test every transition boundary
+        assert_eq!(Level::from_numeric(14), Level::Trace);
+        assert_eq!(Level::from_numeric(15), Level::Debug);
+        assert_eq!(Level::from_numeric(24), Level::Debug);
+        assert_eq!(Level::from_numeric(25), Level::Info);
+        assert_eq!(Level::from_numeric(34), Level::Info);
+        assert_eq!(Level::from_numeric(35), Level::Warn);
+        assert_eq!(Level::from_numeric(44), Level::Warn);
+        assert_eq!(Level::from_numeric(45), Level::Error);
+        assert_eq!(Level::from_numeric(54), Level::Error);
+        assert_eq!(Level::from_numeric(55), Level::Fatal);
+    }
+
+    #[test]
+    fn test_from_numeric_extreme_values() {
+        assert_eq!(Level::from_numeric(i64::MIN), Level::Trace);
+        assert_eq!(Level::from_numeric(-1), Level::Trace);
+        assert_eq!(Level::from_numeric(0), Level::Trace);
+        assert_eq!(Level::from_numeric(i64::MAX), Level::Fatal);
+    }
+
+    #[test]
+    fn test_from_json_value_float_truncation() {
+        // 29.9 as f64 cast to i64 = 29, which is in the Info range (25..=34)
+        let val = serde_json::json!(29.9);
+        assert_eq!(Level::from_json_value(&val, None), Some(Level::Info));
+
+        // 24.999 truncates to 24 → Debug range (15..=24)
+        let val = serde_json::json!(24.999);
+        assert_eq!(Level::from_json_value(&val, None), Some(Level::Debug));
+
+        // 25.0 truncates to 25 → Info range (25..=34)
+        let val = serde_json::json!(25.0);
+        assert_eq!(Level::from_json_value(&val, None), Some(Level::Info));
+    }
+
+    #[test]
+    fn test_from_json_value_non_level_types() {
+        // Boolean, null, array → None
+        assert_eq!(Level::from_json_value(&serde_json::json!(true), None), None);
+        assert_eq!(Level::from_json_value(&serde_json::json!(null), None), None);
+        assert_eq!(
+            Level::from_json_value(&serde_json::json!([1, 2]), None),
+            None
+        );
+    }
 }
