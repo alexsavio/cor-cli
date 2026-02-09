@@ -21,10 +21,16 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 - Point the Cargo readme settings to the README.md file
 - Add 'Why cor?' etymology blurb to README
 
+### 🧪 Testing
+
+- Add edge case and boundary tests for parsing heuristics
+
 ### ⚙️ Miscellaneous Tasks
 
 - Update changelog [skip ci]
 - Update changelog [skip ci]
+- Update changelog [skip ci]
+- Update demo screenshots [skip ci]
 - Update changelog [skip ci]
 
 ## [2026.2.4] - 2026-02-08
