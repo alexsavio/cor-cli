@@ -16,6 +16,8 @@ $ echo '{"level":"info","ts":"2026-01-15T10:30:01.456Z","msg":"server started","
                                 port: 8080
 ```
 
+> **Why "cor"?** — *Cor* (pronounced /koɾ/) means "color" in Portuguese. Because naming a log colorizer "color" felt too obvious, we went with the version that sounds cooler and confuses spellcheckers.
+
 ## Demo
 
 ### Default output
