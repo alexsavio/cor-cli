@@ -7,12 +7,22 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+### 🚀 Features
+
+- Handle malformed JSON logs with raw newlines and double-escaped strings
+
+### 🐛 Bug Fixes
+
+- Config file max_field_length=0 overridden by CLI default
+
 ### 📚 Documentation
 
 - Point the Cargo readme settings to the README.md file
+- Add 'Why cor?' etymology blurb to README
 
 ### ⚙️ Miscellaneous Tasks
 
+- Update changelog [skip ci]
 - Update changelog [skip ci]
 
 ## [2026.2.4] - 2026-02-08
