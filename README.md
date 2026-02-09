@@ -66,6 +66,7 @@ $ echo '{"level":"info","ts":"2026-01-15T10:30:01.456Z","msg":"server started","
 - **Field filtering** — `--include-fields` or `--exclude-fields`
 - **JSON passthrough** — `--json` outputs filtered JSON for piping
 - **Truncation** — long values truncated at 120 chars (configurable)
+- **Line gap** — configurable blank lines between entries (default: 1)
 - **Config file** — `~/.config/cor/config.toml` for persistent settings
 - **NO_COLOR** — respects [no-color.org](https://no-color.org) convention
 - **Fast** — ~400K lines/sec, O(line-length) memory, streaming I/O
@@ -109,6 +110,12 @@ my-app | cor --level error --json | jq .
 
 # Disable truncation
 my-app | cor --max-field-length=0
+
+# Compact output (no blank lines between entries)
+my-app | cor --line-gap=0
+
+# Extra spacing between entries
+my-app | cor --line-gap=3
 
 # Force colors in pipes
 my-app | cor --color=always | less -R
@@ -198,6 +205,9 @@ timestamp_format = "%Y-%m-%dT%H:%M:%S%.3f"
 # Max field value length (0 = unlimited)
 max_field_length = 120
 
+# Blank lines between entries (0 = compact)
+line_gap = 1
+
 # Examples of custom timestamp formats:
 # timestamp_format = "%H:%M:%S%.3f"    # time only with milliseconds
 # timestamp_format = "%H:%M:%S"        # time only, no milliseconds
@@ -240,6 +250,7 @@ Options:
   -e, --exclude-fields <FIELDS>    Hide these fields (comma-separated)
   -j, --json                       Output raw JSON instead of colorized text
   -M, --max-field-length <N>       Max field value length [default: 120]
+  -g, --line-gap <N>               Blank lines between entries [default: 1]
       --config <PATH>              Path to config file
   -h, --help                       Print help
   -V, --version                    Print version

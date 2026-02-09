@@ -42,6 +42,8 @@ pub struct Config {
     pub timestamp_format: String,
     /// Custom level name aliases mapping string → [`Level`].
     pub level_aliases: Option<HashMap<String, Level>>,
+    /// Number of blank lines inserted between each log entry. 0 = compact (no gaps).
+    pub line_gap: usize,
 }
 
 impl Default for Config {
@@ -58,6 +60,7 @@ impl Default for Config {
             max_field_length: 120,
             timestamp_format: "%Y-%m-%dT%H:%M:%S%.3f".to_string(),
             level_aliases: None,
+            line_gap: 1,
         }
     }
 }
@@ -105,6 +108,9 @@ impl Config {
         if let Some(max_len) = cli.max_field_length {
             config.max_field_length = max_len;
         }
+        if let Some(gap) = cli.line_gap {
+            config.line_gap = gap;
+        }
 
         Ok(config)
     }
@@ -145,6 +151,10 @@ impl Config {
             self.max_field_length = max_len;
         }
 
+        if let Some(gap) = file.line_gap {
+            self.line_gap = gap;
+        }
+
         if let Some(keys) = file.keys {
             if let Some(msg) = keys.message {
                 self.message_key = Some(msg);
@@ -178,6 +188,7 @@ struct FileConfig {
     level: Option<String>,
     timestamp_format: Option<String>,
     max_field_length: Option<usize>,
+    line_gap: Option<usize>,
     keys: Option<KeysConfig>,
     levels: Option<HashMap<String, String>>,
     #[allow(dead_code)] // Parsed but not yet used — will support custom level colors
@@ -214,6 +225,7 @@ mod tests {
         assert_eq!(config.max_field_length, 120);
         assert_eq!(config.timestamp_format, "%Y-%m-%dT%H:%M:%S%.3f");
         assert!(!config.json_output);
+        assert_eq!(config.line_gap, 1);
     }
 
     #[test]
@@ -223,6 +235,7 @@ mod tests {
             level = "warn"
             timestamp_format = "%H:%M:%S"
             max_field_length = 80
+            line_gap = 2
 
             [keys]
             message = "event"
@@ -238,6 +251,7 @@ mod tests {
         assert_eq!(file_config.color.as_deref(), Some("always"));
         assert_eq!(file_config.level.as_deref(), Some("warn"));
         assert_eq!(file_config.max_field_length, Some(80));
+        assert_eq!(file_config.line_gap, Some(2));
         assert!(file_config.keys.is_some());
         assert!(file_config.levels.is_some());
     }
@@ -250,6 +264,7 @@ mod tests {
             level: Some("error".to_string()),
             timestamp_format: Some("%H:%M:%S".to_string()),
             max_field_length: Some(80),
+            line_gap: Some(3),
             keys: Some(KeysConfig {
                 message: Some("event".to_string()),
                 level: None,
@@ -268,6 +283,7 @@ mod tests {
         assert_eq!(config.min_level, Some(Level::Error));
         assert_eq!(config.message_key.as_deref(), Some("event"));
         assert_eq!(config.max_field_length, 80);
+        assert_eq!(config.line_gap, 3);
         assert!(config.level_aliases.is_some());
     }
 
@@ -308,6 +324,7 @@ mod tests {
             level: None,
             timestamp_format: Some("%H:%M".to_string()),
             max_field_length: None,
+            line_gap: None,
             keys: None,
             levels: None,
             colors: None,
@@ -317,5 +334,6 @@ mod tests {
         assert!(config.min_level.is_none());
         assert_eq!(config.timestamp_format, "%H:%M");
         assert_eq!(config.max_field_length, 120);
+        assert_eq!(config.line_gap, 1);
     }
 }

@@ -71,6 +71,12 @@ pub struct Cli {
     #[arg(short = 'M', long)]
     pub max_field_length: Option<usize>,
 
+    /// Number of blank lines between each log entry.
+    ///
+    /// Set to `0` for compact output with no gaps.
+    #[arg(short = 'g', long)]
+    pub line_gap: Option<usize>,
+
     /// Path to configuration file.
     #[arg(long)]
     pub config: Option<std::path::PathBuf>,

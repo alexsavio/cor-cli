@@ -110,14 +110,23 @@ fn process_lines(
                     for raw_line in buffer.split('\n') {
                         line_buf.clear();
                         format_line(raw_line, config, use_color, &mut line_buf);
-                        if !line_buf.is_empty()
-                            && let Err(e) = writeln!(writer, "{line_buf}")
-                        {
-                            if e.kind() == io::ErrorKind::BrokenPipe {
-                                return Some(ExitCode::SUCCESS);
+                        if !line_buf.is_empty() {
+                            if let Err(e) = writeln!(writer, "{line_buf}") {
+                                if e.kind() == io::ErrorKind::BrokenPipe {
+                                    return Some(ExitCode::SUCCESS);
+                                }
+                                eprintln!("cor: write error: {e}");
+                                return Some(ExitCode::from(2));
                             }
-                            eprintln!("cor: write error: {e}");
-                            return Some(ExitCode::from(2));
+                            for _ in 0..config.line_gap {
+                                if let Err(e) = writeln!(writer) {
+                                    if e.kind() == io::ErrorKind::BrokenPipe {
+                                        return Some(ExitCode::SUCCESS);
+                                    }
+                                    eprintln!("cor: write error: {e}");
+                                    return Some(ExitCode::from(2));
+                                }
+                            }
                         }
                     }
                     continue;
@@ -140,6 +149,17 @@ fn process_lines(
             }
             eprintln!("cor: write error: {e}");
             return Some(ExitCode::from(2));
+        }
+
+        // Insert blank lines between entries.
+        for _ in 0..config.line_gap {
+            if let Err(e) = writeln!(writer) {
+                if e.kind() == io::ErrorKind::BrokenPipe {
+                    return Some(ExitCode::SUCCESS);
+                }
+                eprintln!("cor: write error: {e}");
+                return Some(ExitCode::from(2));
+            }
         }
     }
 
