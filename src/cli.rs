@@ -68,8 +68,8 @@ pub struct Cli {
     ///
     /// Values exceeding this length are truncated with `…`.
     /// Set to `0` to disable truncation.
-    #[arg(short = 'M', long, default_value_t = 120)]
-    pub max_field_length: usize,
+    #[arg(short = 'M', long)]
+    pub max_field_length: Option<usize>,
 
     /// Path to configuration file.
     #[arg(long)]

@@ -102,7 +102,9 @@ impl Config {
         }
 
         config.json_output = cli.json;
-        config.max_field_length = cli.max_field_length;
+        if let Some(max_len) = cli.max_field_length {
+            config.max_field_length = max_len;
+        }
 
         Ok(config)
     }

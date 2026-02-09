@@ -4,7 +4,9 @@ use assert_cmd::Command;
 
 #[allow(deprecated)]
 fn cor() -> Command {
-    Command::cargo_bin("cor").unwrap()
+    let mut cmd = Command::cargo_bin("cor").unwrap();
+    cmd.env("XDG_CONFIG_HOME", "/tmp/cor-test-no-config");
+    cmd
 }
 
 #[test]
