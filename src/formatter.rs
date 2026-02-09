@@ -27,7 +27,21 @@ use crate::parser::{self, LineKind, LogRecord};
 /// The result is written into `out`.
 pub fn format_line(line: &str, config: &Config, use_color: bool, out: &mut String) {
     let parsed = parser::parse_line(line, config);
+    format_line_parsed(parsed, line, config, use_color, out);
+}
 
+/// Format a pre-parsed [`LineKind`] for output.
+///
+/// Like [`format_line`], but accepts an already-parsed [`LineKind`] instead of
+/// a raw line string. The `raw_line` parameter is used for `LineKind::Raw`
+/// passthrough.
+pub fn format_line_parsed(
+    parsed: LineKind,
+    raw_line: &str,
+    config: &Config,
+    use_color: bool,
+    out: &mut String,
+) {
     match parsed {
         LineKind::Json(record) => {
             if should_filter(&record, config) {
@@ -59,7 +73,7 @@ pub fn format_line(line: &str, config: &Config, use_color: bool, out: &mut Strin
                 return;
             }
             // Pass through unchanged
-            out.push_str(line);
+            out.push_str(raw_line);
         }
     }
 }

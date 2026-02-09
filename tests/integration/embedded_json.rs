@@ -240,3 +240,98 @@ fn timestamp_prefix_no_level_in_json() {
         "Missing level should produce blank badge with colon"
     );
 }
+
+#[test]
+fn multiline_json_with_raw_newlines_in_exception() {
+    // Simulates a structlog JSON entry where the exception traceback
+    // has actual newline bytes (0x0A) instead of JSON-escaped \n.
+    // This splits the JSON across multiple lines for BufRead::lines().
+    let mut input = Vec::new();
+    input.extend_from_slice(
+        b"2026-02-09 11:15:15.096 {\"event\":\"Failed to create job template.\",\"level\":\"error\",\"exception\":\"Traceback (most recent call last):\n  File \\\"app.py\\\", line 72\n    raise Error\",\"timestamp\":\"2026-02-09T11:15:15.096Z\"}\n",
+    );
+    input.extend_from_slice(
+        b"{\"event\":\"Creating job template.\",\"level\":\"info\",\"timestamp\":\"2026-02-09T11:15:17.096Z\"}\n",
+    );
+
+    let output = cor()
+        .arg("--color=never")
+        .write_stdin(input)
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Error line should be parsed and formatted
+    assert!(
+        stdout.contains("ERROR:"),
+        "Error log with raw newlines should be formatted.\nGot: {stdout}"
+    );
+    assert!(
+        stdout.contains("Failed to create job template."),
+        "Error message should be extracted.\nGot: {stdout}"
+    );
+    assert!(
+        stdout.contains("exception:"),
+        "Exception field should appear in extra fields.\nGot: {stdout}"
+    );
+
+    // Info line should also be formatted
+    assert!(
+        stdout.contains("INFO:"),
+        "Subsequent info log should also be formatted.\nGot: {stdout}"
+    );
+    assert!(
+        stdout.contains("Creating job template."),
+        "Info message should be extracted.\nGot: {stdout}"
+    );
+}
+
+#[test]
+fn multiline_json_pure_json_with_raw_newlines() {
+    // Pure JSON (no prefix) with raw newlines in a string value.
+    let input =
+        b"{\"level\":\"error\",\"msg\":\"fail\",\"stack\":\"Error\n  at main\n  at run\"}\n";
+
+    let output = cor()
+        .arg("--color=never")
+        .write_stdin(input.to_vec())
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stdout.contains("ERROR:"),
+        "Pure JSON with raw newlines should be formatted.\nGot: {stdout}"
+    );
+    assert!(
+        stdout.contains("fail"),
+        "Message should be extracted.\nGot: {stdout}"
+    );
+}
+
+#[test]
+fn double_escaped_json_parsed_as_error() {
+    // JSON with double-escaped sequences: \\n and \\" instead of \n and \"
+    // This is produced by some log pipelines that double-escape strings.
+    let input = r#"2026-02-09 11:15:17.180 {"event":"Failed to create job template.","level":"error","exception":"Traceback (most recent call last):\\n  File \\"/src/app/scicat.py\\", line 72\\nhttpx.HTTPStatusError: Server error","timestamp":"2026-02-09T11:15:17.180Z"}"#;
+
+    let output = cor()
+        .arg("--color=never")
+        .write_stdin(input)
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stdout.contains("ERROR:"),
+        "Double-escaped JSON should be formatted as ERROR.\nGot: {stdout}"
+    );
+    assert!(
+        stdout.contains("Failed to create job template."),
+        "Message should be extracted from double-escaped JSON.\nGot: {stdout}"
+    );
+    assert!(
+        stdout.contains("exception:"),
+        "Exception field should appear.\nGot: {stdout}"
+    );
+}

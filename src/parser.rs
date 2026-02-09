@@ -74,7 +74,28 @@ pub fn parse_line(line: &str, config: &Config) -> LineKind {
 }
 
 /// Try to parse a string as a JSON object and extract log fields.
+///
+/// If the initial parse fails, retries after un-double-escaping backslash
+/// sequences (e.g., `\\n` → `\n`, `\\"` → `\"`). Some log pipelines
+/// double-escape JSON string contents, producing invalid JSON.
 fn try_parse_json(s: &str, config: &Config) -> Option<LogRecord> {
+    if let Some(record) = try_parse_json_str(s, config) {
+        return Some(record);
+    }
+
+    // Fallback: try un-double-escaping and re-parsing.
+    if s.contains(r"\\") {
+        let fixed = un_double_escape_json(s);
+        if fixed != s {
+            return try_parse_json_str(&fixed, config);
+        }
+    }
+
+    None
+}
+
+/// Core JSON parsing: deserialize and extract log fields.
+fn try_parse_json_str(s: &str, config: &Config) -> Option<LogRecord> {
     let parsed: serde_json::Value = serde_json::from_str(s).ok()?;
 
     // Only JSON objects are valid log entries; arrays pass through as Raw
@@ -142,6 +163,111 @@ fn extract_message(
         fields::find_and_remove(map, fields::MESSAGE_ALIASES)
             .map(|(_, v)| value_to_string(v).unwrap_or_default())
     }
+}
+
+/// Un-double-escape backslash sequences inside JSON string values.
+///
+/// Some log pipelines double-escape JSON, turning valid `\n` into `\\n`
+/// and `\"` into `\\"`. This makes the JSON invalid because `\\"` is
+/// parsed as an escaped backslash followed by a string-terminating quote.
+///
+/// This function reverses that by replacing `\\X` → `\X` for JSON escape
+/// characters (`n`, `r`, `t`, `"`, `\`, `/`, `b`, `f`) only inside string
+/// values.
+pub fn un_double_escape_json(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    let mut in_string = false;
+    let mut escape_next = false;
+
+    while let Some(ch) = chars.next() {
+        if escape_next {
+            // We're after a single backslash inside a string.
+            if ch == '\\' {
+                // Double backslash — check if the next char is a JSON escape char.
+                if let Some(&next) = chars.peek()
+                    && matches!(next, 'n' | 'r' | 't' | '"' | '\\' | '/' | 'b' | 'f' | 'u')
+                {
+                    // `\\n` → `\n`: drop the extra backslash.
+                    result.push('\\');
+                    result.push(next);
+                    chars.next();
+                    escape_next = false;
+                    continue;
+                }
+            }
+            result.push(ch);
+            escape_next = false;
+            continue;
+        }
+
+        if in_string && ch == '\\' {
+            escape_next = true;
+            // Don't push yet — wait to see next char.
+            continue;
+        }
+
+        if ch == '"' {
+            in_string = !in_string;
+        }
+
+        result.push(ch);
+    }
+
+    // If we ended with a pending backslash, flush it.
+    if escape_next {
+        result.push('\\');
+    }
+
+    result
+}
+
+/// Sanitize raw control characters (newlines, carriage returns) inside JSON string values.
+///
+/// Some log producers (e.g., Python structlog with exception tracebacks) emit
+/// JSON with raw `\n` bytes inside string values instead of proper `\\n` escapes.
+/// This is technically invalid JSON (RFC 8259 §7), but common in practice.
+///
+/// This function scans the input and replaces raw `\n` and `\r` characters with
+/// their JSON escape sequences (`\\n` and `\\r`) only when they appear inside
+/// JSON string values. Newlines between JSON tokens (valid whitespace) are left
+/// unchanged.
+pub fn sanitize_json_newlines(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut in_string = false;
+    let mut escape_next = false;
+
+    for ch in s.chars() {
+        if escape_next {
+            result.push(ch);
+            escape_next = false;
+            continue;
+        }
+
+        if in_string && ch == '\\' {
+            result.push(ch);
+            escape_next = true;
+            continue;
+        }
+
+        if ch == '"' {
+            in_string = !in_string;
+            result.push(ch);
+            continue;
+        }
+
+        if in_string {
+            match ch {
+                '\n' => result.push_str("\\n"),
+                '\r' => result.push_str("\\r"),
+                _ => result.push(ch),
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+
+    result
 }
 
 /// Convert a JSON value to its string representation.
@@ -389,6 +515,124 @@ mod tests {
                 assert!(tags.is_array(), "arrays should be preserved as-is");
             }
             _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_sanitize_json_newlines_no_change() {
+        let input = r#"{"level":"info","msg":"hello"}"#;
+        assert_eq!(sanitize_json_newlines(input), input);
+    }
+
+    #[test]
+    fn test_sanitize_json_newlines_in_string_value() {
+        let input = "{\"msg\":\"line1\nline2\"}";
+        let expected = r#"{"msg":"line1\nline2"}"#;
+        assert_eq!(sanitize_json_newlines(input), expected);
+    }
+
+    #[test]
+    fn test_sanitize_json_newlines_preserves_between_tokens() {
+        let input = "{\n\"msg\":\n\"hello\"\n}";
+        let expected = "{\n\"msg\":\n\"hello\"\n}";
+        assert_eq!(sanitize_json_newlines(input), expected);
+    }
+
+    #[test]
+    fn test_sanitize_json_newlines_preserves_escaped_quotes() {
+        // A string containing escaped quote followed by newline
+        let input = "{\"msg\":\"say \\\"hi\\\"\nhello\"}";
+        let expected = "{\"msg\":\"say \\\"hi\\\"\\nhello\"}";
+        assert_eq!(sanitize_json_newlines(input), expected);
+    }
+
+    #[test]
+    fn test_sanitize_json_newlines_carriage_return() {
+        let input = "{\"msg\":\"line1\r\nline2\"}";
+        let expected = r#"{"msg":"line1\r\nline2"}"#;
+        assert_eq!(sanitize_json_newlines(input), expected);
+    }
+
+    #[test]
+    fn test_sanitize_json_newlines_exception_traceback() {
+        let input = "{\"event\":\"error\",\"exception\":\"Traceback:\n  File \\\"app.py\\\"\n    raise Error\",\"level\":\"error\"}";
+        let sanitized = sanitize_json_newlines(input);
+        // Should be valid JSON after sanitization
+        let parsed: Result<serde_json::Value, _> = serde_json::from_str(&sanitized);
+        assert!(parsed.is_ok(), "sanitized JSON should parse: {sanitized}");
+        let obj = parsed.unwrap();
+        assert_eq!(obj["event"], "error");
+        assert!(obj["exception"].as_str().unwrap().contains("Traceback"));
+    }
+
+    #[test]
+    fn test_un_double_escape_json_no_change() {
+        let input = r#"{"level":"info","msg":"hello"}"#;
+        assert_eq!(un_double_escape_json(input), input);
+    }
+
+    #[test]
+    fn test_un_double_escape_json_newlines() {
+        // \\n (double-escaped) should become \n (single-escaped)
+        let input = r#"{"msg":"line1\\nline2"}"#;
+        let expected = r#"{"msg":"line1\nline2"}"#;
+        assert_eq!(un_double_escape_json(input), expected);
+    }
+
+    #[test]
+    fn test_un_double_escape_json_quotes() {
+        // \\" (double-escaped) should become \" (single-escaped)
+        let input = r#"{"msg":"say \\"hello\\""}"#;
+        let expected = r#"{"msg":"say \"hello\""}"#;
+        assert_eq!(un_double_escape_json(input), expected);
+    }
+
+    #[test]
+    fn test_un_double_escape_json_full_traceback() {
+        let input = r#"{"event":"error","exception":"Traceback:\\n  File \\"/src/app.py\\", line 72\\n    raise Error","level":"error"}"#;
+        let fixed = un_double_escape_json(input);
+        let parsed: Result<serde_json::Value, _> = serde_json::from_str(&fixed);
+        assert!(
+            parsed.is_ok(),
+            "un-double-escaped JSON should parse: {fixed}"
+        );
+        let obj = parsed.unwrap();
+        assert_eq!(obj["level"], "error");
+        let exc = obj["exception"].as_str().unwrap();
+        assert!(
+            exc.contains("Traceback:"),
+            "exception should contain Traceback"
+        );
+        assert!(
+            exc.contains("/src/app.py"),
+            "exception should contain file path"
+        );
+    }
+
+    #[test]
+    fn test_double_escaped_json_parsed_via_parse_line() {
+        // parse_line should handle double-escaped JSON transparently
+        let line = r#"{"event":"fail","level":"error","exception":"Traceback:\\n  File \\"/app.py\\", line 1"}"#;
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.level, Some(Level::Error));
+                assert_eq!(record.message.as_deref(), Some("fail"));
+            }
+            _ => panic!("Expected Json, got Raw for double-escaped JSON"),
+        }
+    }
+
+    #[test]
+    fn test_double_escaped_embedded_json() {
+        let line = r#"2026-02-09 11:15:17.180 {"event":"fail","level":"error","exception":"Traceback:\\n  File \\"/app.py\\"","timestamp":"2026-02-09T11:15:17Z"}"#;
+        let result = parse_line(line, &default_config());
+        match result {
+            LineKind::EmbeddedJson { record, .. } => {
+                assert_eq!(record.level, Some(Level::Error));
+                assert_eq!(record.message.as_deref(), Some("fail"));
+            }
+            _ => panic!("Expected EmbeddedJson for double-escaped embedded JSON"),
         }
     }
 }
