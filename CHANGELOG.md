@@ -10,6 +10,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 ### 🚀 Features
 
 - Handle malformed JSON logs with raw newlines and double-escaped strings
+- Add --line-gap option to control blank lines between entries
 
 ### 🐛 Bug Fixes
 
@@ -22,6 +23,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ### ⚙️ Miscellaneous Tasks
 
+- Update changelog [skip ci]
 - Update changelog [skip ci]
 - Update changelog [skip ci]
 
