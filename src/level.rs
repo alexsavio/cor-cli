@@ -193,6 +193,26 @@ mod tests {
     }
 
     #[test]
+    fn test_from_str_loose_all_aliases() {
+        // Trace aliases
+        assert_eq!(Level::from_str_loose("trc"), Some(Level::Trace));
+        // Debug aliases
+        assert_eq!(Level::from_str_loose("dbg"), Some(Level::Debug));
+        // Info aliases
+        assert_eq!(Level::from_str_loose("inf"), Some(Level::Info));
+        assert_eq!(Level::from_str_loose("information"), Some(Level::Info));
+        // Warn aliases
+        assert_eq!(Level::from_str_loose("wrn"), Some(Level::Warn));
+        // Error aliases
+        assert_eq!(Level::from_str_loose("err"), Some(Level::Error));
+        assert_eq!(Level::from_str_loose("fatal_error"), Some(Level::Error));
+        // Fatal aliases
+        assert_eq!(Level::from_str_loose("crit"), Some(Level::Fatal));
+        assert_eq!(Level::from_str_loose("emerg"), Some(Level::Fatal));
+        assert_eq!(Level::from_str_loose("emergency"), Some(Level::Fatal));
+    }
+
+    #[test]
     fn test_from_str_loose_unknown() {
         assert_eq!(Level::from_str_loose("verbose"), None);
         assert_eq!(Level::from_str_loose(""), None);

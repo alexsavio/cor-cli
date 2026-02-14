@@ -876,4 +876,31 @@ mod tests {
             _ => panic!("Expected Json variant"),
         }
     }
+
+    #[test]
+    fn test_custom_key_leaves_alias_field_in_extra() {
+        // When --message-key=event is set, the "msg" alias field should NOT be
+        // consumed and should remain in extra.
+        let config = Config {
+            message_key: Some("event".to_string()),
+            ..Config::default()
+        };
+        let line = r#"{"level":"info","msg":"alias msg","event":"custom msg"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(
+                    record.message.as_deref(),
+                    Some("custom msg"),
+                    "custom key should be used as message"
+                );
+                assert_eq!(
+                    record.extra.get("msg"),
+                    Some(&json!("alias msg")),
+                    "alias-named field should remain in extra when custom key overrides"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
 }

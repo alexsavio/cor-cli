@@ -661,4 +661,41 @@ mod tests {
             "verbose should show error for malformed embedded JSON"
         );
     }
+
+    #[test]
+    fn test_level_filtering_no_level_passes_through() {
+        // JSON records with no recognized level field should pass through
+        // even when min_level filtering is active.
+        let config = Config {
+            min_level: Some(Level::Error),
+            ..Config::default()
+        };
+        let mut out = String::new();
+        let line = r#"{"msg":"no level field","port":8080}"#;
+        format_line(line, &config, false, &mut out);
+        assert!(
+            out.contains("no level field"),
+            "JSON record without level should pass through when filtering is active"
+        );
+    }
+
+    #[test]
+    fn test_verbose_parse_error_colorized() {
+        let config = Config {
+            verbose: true,
+            ..Config::default()
+        };
+        let mut out = String::new();
+        let line = r#"{"level":"info", "msg":}"#;
+        format_line(line, &config, true, &mut out);
+        // Should contain ANSI escape sequences in the error output
+        assert!(
+            out.contains("\x1b["),
+            "verbose colorized error should contain ANSI escapes"
+        );
+        assert!(
+            out.contains("parse error:"),
+            "verbose colorized error should contain 'parse error:'"
+        );
+    }
 }

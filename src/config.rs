@@ -452,6 +452,128 @@ mod tests {
     }
 
     #[test]
+    fn test_apply_file_config_valid_colors() {
+        let mut config = Config::default();
+        let file_config = FileConfig {
+            color: None,
+            level: None,
+            timestamp_format: None,
+            max_field_length: None,
+            line_gap: None,
+            key_min_width: None,
+            keys: None,
+            levels: None,
+            colors: Some({
+                let mut m = HashMap::new();
+                m.insert("info".to_string(), "cyan".to_string());
+                m.insert("error".to_string(), "bright_red".to_string());
+                m
+            }),
+        };
+        config.apply_file_config(file_config);
+        let colors = config.level_colors.unwrap();
+        assert_eq!(colors.get(&Level::Info), Some(&"cyan".to_string()));
+        assert_eq!(colors.get(&Level::Error), Some(&"bright_red".to_string()));
+    }
+
+    #[test]
+    fn test_apply_file_config_invalid_colors_skipped() {
+        let mut config = Config::default();
+        let file_config = FileConfig {
+            color: None,
+            level: None,
+            timestamp_format: None,
+            max_field_length: None,
+            line_gap: None,
+            key_min_width: None,
+            keys: None,
+            levels: None,
+            colors: Some({
+                let mut m = HashMap::new();
+                m.insert("info".to_string(), "rainbow".to_string()); // invalid color
+                m.insert("error".to_string(), "red".to_string()); // valid
+                m
+            }),
+        };
+        config.apply_file_config(file_config);
+        let colors = config.level_colors.unwrap();
+        assert!(
+            !colors.contains_key(&Level::Info),
+            "invalid color 'rainbow' should be silently skipped"
+        );
+        assert_eq!(colors.get(&Level::Error), Some(&"red".to_string()));
+    }
+
+    #[test]
+    fn test_apply_file_config_all_invalid_colors_produces_none() {
+        let mut config = Config::default();
+        let file_config = FileConfig {
+            color: None,
+            level: None,
+            timestamp_format: None,
+            max_field_length: None,
+            line_gap: None,
+            key_min_width: None,
+            keys: None,
+            levels: None,
+            colors: Some({
+                let mut m = HashMap::new();
+                m.insert("info".to_string(), "rainbow".to_string());
+                m.insert("error".to_string(), "neon".to_string());
+                m
+            }),
+        };
+        config.apply_file_config(file_config);
+        assert!(
+            config.level_colors.is_none(),
+            "all-invalid colors should leave level_colors as None"
+        );
+    }
+
+    #[test]
+    fn test_apply_file_config_invalid_level_in_colors_skipped() {
+        // A valid color but for an unrecognized level name
+        let mut config = Config::default();
+        let file_config = FileConfig {
+            color: None,
+            level: None,
+            timestamp_format: None,
+            max_field_length: None,
+            line_gap: None,
+            key_min_width: None,
+            keys: None,
+            levels: None,
+            colors: Some({
+                let mut m = HashMap::new();
+                m.insert("verbose".to_string(), "red".to_string()); // invalid level
+                m.insert("warn".to_string(), "yellow".to_string()); // valid
+                m
+            }),
+        };
+        config.apply_file_config(file_config);
+        let colors = config.level_colors.unwrap();
+        assert_eq!(colors.len(), 1);
+        assert_eq!(colors.get(&Level::Warn), Some(&"yellow".to_string()));
+    }
+
+    #[test]
+    fn test_file_config_empty_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        std::fs::write(&path, "").unwrap();
+        let file_config = FileConfig::load(&path).unwrap();
+        assert!(file_config.color.is_none());
+        assert!(file_config.level.is_none());
+        assert!(file_config.timestamp_format.is_none());
+        assert!(file_config.max_field_length.is_none());
+        assert!(file_config.line_gap.is_none());
+        assert!(file_config.key_min_width.is_none());
+        assert!(file_config.keys.is_none());
+        assert!(file_config.levels.is_none());
+        assert!(file_config.colors.is_none());
+    }
+
+    #[test]
     fn test_apply_file_config_unrecognized_color_defaults_to_auto() {
         let mut config = Config::default();
         let file_config = FileConfig {
