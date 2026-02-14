@@ -9,35 +9,12 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ### 🚀 Features
 
-- Make `key_min_width` configurable via config file and README
-- Complete custom colors support for level badges (`[colors]` section in config)
-- Add `--verbose` / `-v` flag to show parse error details for malformed JSON lines
-- Add SIMD feature flag (`--features simd`) for SIMD-accelerated JSON parsing on hot path
-
-### ♻️ Refactoring
-
-- Add `#[inline]` to hot-path small functions in formatter (`should_filter`, `format_value`, `truncate_value`)
-- Use `Cow<str>` in `sanitize_json_newlines()` to avoid allocation when no changes needed
-- Extract write-error handling to `check_write_result()` and `write_entry()` helpers in main.rs
-- Refactor CLI override logic in config to use `if let Some(ref ...)` pattern
-- Propagate parse errors through `LineKind::Raw(Option<ParseError>)` instead of discarding them
-- Extract `parse_json_value()` with conditional compilation for `serde_json` / `simd-json`
-
-### 📚 Documentation
-
-- Document SIMD acceleration install instructions in README
-- Document `key_min_width` and `[colors]` config options in README
-- Document `--verbose` flag in README CLI reference
-
-### 🧪 Testing
-
-- Add tests for verbose mode parse error display
-- Add tests for `Cow::Borrowed` / `Cow::Owned` return from `sanitize_json_newlines`
+- Add configurable colors, verbose mode, key alignment, and SIMD support
 
 ### ⚙️ Miscellaneous Tasks
 
-- Support 4-segment version tags in release workflow
-- Update release workflow tag example to CalVer format
+- Update changelog [skip ci]
+- Add AI instructions
 
 ## [2026.2.5] - 2026-02-09
 
