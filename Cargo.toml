@@ -1,6 +1,6 @@
 [package]
 name = "cor"
-version = "2026.2.5"
+version = "2026.2.6"
 edition = "2024"
 rust-version = "1.92"
 description = "Colorize JSON-structured log lines from stdin"
