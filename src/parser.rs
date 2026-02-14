@@ -5,6 +5,7 @@
 //! Supports pure JSON lines, lines with a non-JSON prefix before a JSON object
 //! (embedded JSON), and plain text passthrough.
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use crate::config::Config;
@@ -20,7 +21,19 @@ pub enum LineKind {
     /// Line has non-JSON text before a valid JSON object.
     EmbeddedJson { prefix: String, record: LogRecord },
     /// Line contains no valid JSON — passed through unmodified.
-    Raw,
+    ///
+    /// If JSON parsing was attempted but failed, contains the parse error.
+    Raw(Option<ParseError>),
+}
+
+/// JSON parse error with context for verbose output.
+#[derive(Debug)]
+pub struct ParseError {
+    /// The `serde_json` error message.
+    pub message: String,
+    /// Line and column where the error occurred (1-indexed).
+    pub line: usize,
+    pub column: usize,
 }
 
 /// A structured log entry extracted from a JSON object.
@@ -50,27 +63,30 @@ pub struct LogRecord {
 pub fn parse_line(line: &str, config: &Config) -> LineKind {
     let trimmed = line.trim();
     if trimmed.is_empty() {
-        return LineKind::Raw;
+        return LineKind::Raw(None);
     }
 
     // Fast path: line starts with '{'
     if trimmed.starts_with('{') {
-        if let Some(record) = try_parse_json(trimmed, config) {
-            return LineKind::Json(record);
+        match try_parse_json(trimmed, config) {
+            Ok(record) => return LineKind::Json(record),
+            Err(err) => return LineKind::Raw(Some(err)),
         }
-        return LineKind::Raw;
     }
 
     // Embedded JSON detection: scan for first '{'
     if let Some(brace_pos) = trimmed.find('{') {
         let json_part = &trimmed[brace_pos..];
-        if let Some(record) = try_parse_json(json_part, config) {
-            let prefix = trimmed[..brace_pos].to_string();
-            return LineKind::EmbeddedJson { prefix, record };
+        match try_parse_json(json_part, config) {
+            Ok(record) => {
+                let prefix = trimmed[..brace_pos].to_string();
+                return LineKind::EmbeddedJson { prefix, record };
+            }
+            Err(err) => return LineKind::Raw(Some(err)),
         }
     }
 
-    LineKind::Raw
+    LineKind::Raw(None)
 }
 
 /// Try to parse a string as a JSON object and extract log fields.
@@ -78,29 +94,69 @@ pub fn parse_line(line: &str, config: &Config) -> LineKind {
 /// If the initial parse fails, retries after un-double-escaping backslash
 /// sequences (e.g., `\\n` → `\n`, `\\"` → `\"`). Some log pipelines
 /// double-escape JSON string contents, producing invalid JSON.
-fn try_parse_json(s: &str, config: &Config) -> Option<LogRecord> {
-    if let Some(record) = try_parse_json_str(s, config) {
-        return Some(record);
-    }
-
-    // Fallback: try un-double-escaping and re-parsing.
-    if s.contains(r"\\") {
-        let fixed = un_double_escape_json(s);
-        if fixed != s {
-            return try_parse_json_str(&fixed, config);
+fn try_parse_json(s: &str, config: &Config) -> Result<LogRecord, ParseError> {
+    match try_parse_json_str(s, config) {
+        Ok(record) => Ok(record),
+        Err(first_err) => {
+            // Fallback: try un-double-escaping and re-parsing.
+            if s.contains(r"\\") {
+                let fixed = un_double_escape_json(s);
+                if fixed != s
+                    && let Ok(record) = try_parse_json_str(&fixed, config)
+                {
+                    return Ok(record);
+                }
+            }
+            Err(first_err)
         }
     }
+}
 
-    None
+/// Parse JSON string to `serde_json::Value` using standard `serde_json`.
+#[cfg(not(feature = "simd"))]
+#[inline]
+fn parse_json_value(s: &str) -> Result<serde_json::Value, ParseError> {
+    serde_json::from_str(s).map_err(|e| ParseError {
+        message: e.to_string(),
+        line: e.line(),
+        column: e.column(),
+    })
+}
+
+/// Parse JSON string to `serde_json::Value` using SIMD-accelerated parsing.
+///
+/// Note: `simd-json` requires a mutable input buffer, so we make a copy.
+/// For small JSON (<1KB), this copy overhead may negate SIMD benefits.
+/// The speedup is most noticeable on large JSON payloads (>1KB).
+#[cfg(feature = "simd")]
+#[inline]
+fn parse_json_value(s: &str) -> Result<serde_json::Value, ParseError> {
+    let mut buf = s.to_string();
+    // SAFETY: simd_json::serde::from_str requires &mut str but only modifies
+    // the buffer in place for parsing; we own the buffer and discard it after.
+    // The returned Value is independent of the input buffer.
+    unsafe { simd_json::serde::from_str(&mut buf) }.map_err(|e| ParseError {
+        message: e.to_string(),
+        // simd-json errors don't provide line/column, use defaults
+        line: 1,
+        column: 1,
+    })
 }
 
 /// Core JSON parsing: deserialize and extract log fields.
-fn try_parse_json_str(s: &str, config: &Config) -> Option<LogRecord> {
-    let parsed: serde_json::Value = serde_json::from_str(s).ok()?;
+///
+/// When the `simd` feature is enabled, uses SIMD-accelerated parsing via
+/// `simd-json` for improved throughput on supported architectures.
+fn try_parse_json_str(s: &str, config: &Config) -> Result<LogRecord, ParseError> {
+    let parsed: serde_json::Value = parse_json_value(s)?;
 
     // Only JSON objects are valid log entries; arrays pass through as Raw
     let serde_json::Value::Object(mut map) = parsed else {
-        return None;
+        return Err(ParseError {
+            message: "not a JSON object (arrays are not log entries)".to_string(),
+            line: 1,
+            column: 1,
+        });
     };
 
     // Extract timestamp
@@ -115,7 +171,7 @@ fn try_parse_json_str(s: &str, config: &Config) -> Option<LogRecord> {
     // Flatten remaining fields (1 level of dot-notation)
     let extra = flatten_extra(map);
 
-    Some(LogRecord {
+    Ok(LogRecord {
         timestamp,
         level,
         message,
@@ -160,8 +216,7 @@ fn extract_message(
     if let Some(ref key) = config.message_key {
         map.remove(key.as_str()).and_then(value_to_string)
     } else {
-        fields::find_and_remove(map, fields::MESSAGE_ALIASES)
-            .map(|(_, v)| value_to_string(v).unwrap_or_default())
+        fields::find_and_remove(map, fields::MESSAGE_ALIASES).and_then(|(_, v)| value_to_string(v))
     }
 }
 
@@ -232,7 +287,15 @@ pub fn un_double_escape_json(s: &str) -> String {
 /// their JSON escape sequences (`\\n` and `\\r`) only when they appear inside
 /// JSON string values. Newlines between JSON tokens (valid whitespace) are left
 /// unchanged.
-pub fn sanitize_json_newlines(s: &str) -> String {
+///
+/// Returns `Cow::Borrowed` when no changes are needed (zero-copy fast path).
+pub fn sanitize_json_newlines(s: &str) -> Cow<'_, str> {
+    // Fast path: check if any sanitization is needed
+    if !needs_newline_sanitization(s) {
+        return Cow::Borrowed(s);
+    }
+
+    // Slow path: build sanitized string
     let mut result = String::with_capacity(s.len());
     let mut in_string = false;
     let mut escape_next = false;
@@ -267,7 +330,37 @@ pub fn sanitize_json_newlines(s: &str) -> String {
         }
     }
 
-    result
+    Cow::Owned(result)
+}
+
+/// Check if a string contains raw newlines inside JSON string values.
+#[inline]
+fn needs_newline_sanitization(s: &str) -> bool {
+    let mut in_string = false;
+    let mut escape_next = false;
+
+    for ch in s.chars() {
+        if escape_next {
+            escape_next = false;
+            continue;
+        }
+
+        if in_string && ch == '\\' {
+            escape_next = true;
+            continue;
+        }
+
+        if ch == '"' {
+            in_string = !in_string;
+            continue;
+        }
+
+        if in_string && (ch == '\n' || ch == '\r') {
+            return true;
+        }
+    }
+
+    false
 }
 
 /// Convert a JSON value to its string representation.
@@ -350,7 +443,7 @@ mod tests {
     fn test_parse_raw() {
         let line = "Just a plain text log line";
         match parse_line(line, &default_config()) {
-            LineKind::Raw => {}
+            LineKind::Raw(_) => {}
             _ => panic!("Expected Raw variant"),
         }
     }
@@ -358,7 +451,7 @@ mod tests {
     #[test]
     fn test_parse_empty() {
         match parse_line("", &default_config()) {
-            LineKind::Raw => {}
+            LineKind::Raw(_) => {}
             _ => panic!("Expected Raw variant"),
         }
     }
@@ -367,7 +460,7 @@ mod tests {
     fn test_parse_json_array_is_raw() {
         let line = r"[1, 2, 3]";
         match parse_line(line, &default_config()) {
-            LineKind::Raw => {}
+            LineKind::Raw(_) => {}
             _ => panic!("Expected Raw variant for JSON array"),
         }
     }
@@ -408,7 +501,7 @@ mod tests {
     fn test_malformed_json_is_raw() {
         let line = r#"{"level":"info", "msg":}"#; // trailing comma, invalid
         match parse_line(line, &default_config()) {
-            LineKind::Raw => {}
+            LineKind::Raw(_) => {}
             _ => panic!("Expected Raw for malformed JSON"),
         }
     }
@@ -417,7 +510,7 @@ mod tests {
     fn test_embedded_invalid_json_after_brace() {
         let line = "prefix text {not valid json}";
         match parse_line(line, &default_config()) {
-            LineKind::Raw => {}
+            LineKind::Raw(_) => {}
             _ => panic!("Expected Raw for invalid embedded JSON"),
         }
     }
@@ -462,8 +555,8 @@ mod tests {
         match result {
             LineKind::Json(record) => {
                 assert_eq!(record.level, Some(crate::level::Level::Info));
-                // null message via alias lookup returns Some("") due to unwrap_or_default
-                assert_eq!(record.message.as_deref(), Some(""));
+                // null message is treated as absent (consistent with custom key behavior)
+                assert!(record.message.is_none());
             }
             _ => panic!("Expected Json variant"),
         }
@@ -487,7 +580,7 @@ mod tests {
     #[test]
     fn test_whitespace_only_is_raw() {
         match parse_line("   \t  ", &default_config()) {
-            LineKind::Raw => {}
+            LineKind::Raw(_) => {}
             _ => panic!("Expected Raw for whitespace-only line"),
         }
     }
@@ -522,6 +615,28 @@ mod tests {
     fn test_sanitize_json_newlines_no_change() {
         let input = r#"{"level":"info","msg":"hello"}"#;
         assert_eq!(sanitize_json_newlines(input), input);
+    }
+
+    #[test]
+    fn test_sanitize_json_newlines_returns_borrowed_when_unchanged() {
+        use std::borrow::Cow;
+        let input = r#"{"level":"info","msg":"hello"}"#;
+        let result = sanitize_json_newlines(input);
+        assert!(
+            matches!(result, Cow::Borrowed(_)),
+            "should return Cow::Borrowed when no changes needed"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_json_newlines_returns_owned_when_changed() {
+        use std::borrow::Cow;
+        let input = "{\"msg\":\"line1\nline2\"}";
+        let result = sanitize_json_newlines(input);
+        assert!(
+            matches!(result, Cow::Owned(_)),
+            "should return Cow::Owned when changes made"
+        );
     }
 
     #[test]
@@ -730,7 +845,7 @@ mod tests {
         let line = r"{not valid \\json\\ at all}";
         let result = parse_line(line, &default_config());
         match result {
-            LineKind::Raw => {}
+            LineKind::Raw(_) => {}
             _ => panic!("Expected Raw for unrecoverable JSON with backslashes"),
         }
     }

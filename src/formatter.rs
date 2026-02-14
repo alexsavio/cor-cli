@@ -66,7 +66,7 @@ pub fn format_line_parsed(
                 format_record(&record, Some(&prefix), config, use_color, out);
             }
         }
-        LineKind::Raw => {
+        LineKind::Raw(parse_error) => {
             if config.json_output {
                 // Non-JSON lines suppressed in --json mode
                 out.clear();
@@ -74,11 +74,35 @@ pub fn format_line_parsed(
             }
             // Pass through unchanged
             out.push_str(raw_line);
+
+            // In verbose mode, show parse error if present
+            if config.verbose
+                && let Some(err) = parse_error
+            {
+                if use_color {
+                    use owo_colors::OwoColorize;
+                    let _ = write!(
+                        out,
+                        "\n  {} [{}:{}] {}",
+                        "parse error:".red().bold(),
+                        err.line,
+                        err.column,
+                        err.message.dimmed()
+                    );
+                } else {
+                    let _ = write!(
+                        out,
+                        "\n  parse error: [{}:{}] {}",
+                        err.line, err.column, err.message
+                    );
+                }
+            }
         }
     }
 }
 
 /// Check if a record should be filtered out by level.
+#[inline]
 fn should_filter(record: &LogRecord, config: &Config) -> bool {
     if let Some(ref min_level) = config.min_level {
         match &record.level {
@@ -90,9 +114,6 @@ fn should_filter(record: &LogRecord, config: &Config) -> bool {
         false
     }
 }
-
-/// Minimum width for extra field key alignment (right-justified).
-const KEY_MIN_WIDTH: usize = 25;
 
 /// Format a [`LogRecord`] into colorized human-readable output.
 ///
@@ -124,7 +145,12 @@ fn format_record(
     if let Some(ref level) = record.level {
         let badge = level.badge();
         if use_color {
-            let style = level.style();
+            let custom_color = config
+                .level_colors
+                .as_ref()
+                .and_then(|colors| colors.get(level))
+                .map(String::as_str);
+            let style = level.style_with_color(custom_color);
             let _ = write!(out, "{}:", badge.style(style));
         } else {
             out.push_str(badge);
@@ -153,6 +179,7 @@ fn format_record(
 
     // Extra fields — each on a new line with right-justified key
     let max_len = config.max_field_length;
+    let key_width = config.key_min_width;
 
     for (key, value) in &record.extra {
         // Apply include/exclude filtering
@@ -174,13 +201,11 @@ fn format_record(
             let _ = write!(
                 out,
                 "\n{}: {}",
-                format!("{key:>KEY_MIN_WIDTH$}")
-                    .truecolor(150, 150, 150)
-                    .bold(),
+                format!("{key:>key_width$}").truecolor(150, 150, 150).bold(),
                 val_display
             );
         } else {
-            let _ = write!(out, "\n{key:>KEY_MIN_WIDTH$}: {val_display}");
+            let _ = write!(out, "\n{key:>key_width$}: {val_display}");
         }
     }
 }
@@ -192,6 +217,7 @@ fn format_record(
 /// - Arrays: compact JSON
 /// - Objects: compact JSON (deeper nesting)
 /// - Null: "null"
+#[inline]
 fn format_value(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::String(s) => s.clone(),
@@ -206,6 +232,7 @@ fn format_value(value: &serde_json::Value) -> String {
 /// Truncate a value string to `max_len` characters, appending `…` if truncated.
 ///
 /// If `max_len` is `0`, no truncation is applied.
+#[inline]
 fn truncate_value(s: &str, max_len: usize) -> String {
     if max_len == 0 || s.chars().count() <= max_len {
         return s.to_string();
@@ -565,6 +592,73 @@ mod tests {
         assert!(
             !out.contains("port"),
             "non-included fields should be hidden"
+        );
+    }
+
+    #[test]
+    fn test_verbose_shows_parse_error() {
+        let config = Config {
+            verbose: true,
+            ..Config::default()
+        };
+        let mut out = String::new();
+        let line = r#"{"level":"info", "msg":}"#; // Invalid JSON
+        format_line(line, &config, false, &mut out);
+        assert!(
+            out.contains("parse error:"),
+            "verbose mode should show parse error"
+        );
+        // Error message varies between serde_json and simd-json parsers
+        assert!(
+            out.len() > line.len(),
+            "output should include error details: {out}"
+        );
+    }
+
+    #[test]
+    fn test_verbose_disabled_hides_parse_error() {
+        let config = Config {
+            verbose: false,
+            ..Config::default()
+        };
+        let mut out = String::new();
+        let line = r#"{"level":"info", "msg":}"#; // Invalid JSON
+        format_line(line, &config, false, &mut out);
+        assert!(
+            !out.contains("parse error"),
+            "verbose off should not show parse error"
+        );
+        // Line should still pass through
+        assert_eq!(out, line);
+    }
+
+    #[test]
+    fn test_verbose_no_error_for_plain_text() {
+        let config = Config {
+            verbose: true,
+            ..Config::default()
+        };
+        let mut out = String::new();
+        format_line("plain text line", &config, false, &mut out);
+        assert!(
+            !out.contains("parse error"),
+            "plain text should not show parse error"
+        );
+        assert_eq!(out, "plain text line");
+    }
+
+    #[test]
+    fn test_verbose_shows_error_for_embedded_malformed_json() {
+        let config = Config {
+            verbose: true,
+            ..Config::default()
+        };
+        let mut out = String::new();
+        let line = r#"prefix {"broken":}"#;
+        format_line(line, &config, false, &mut out);
+        assert!(
+            out.contains("parse error:"),
+            "verbose should show error for malformed embedded JSON"
         );
     }
 }

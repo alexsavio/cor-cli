@@ -87,6 +87,18 @@ cd cor-cli
 cargo install --path .
 ```
 
+### With SIMD acceleration (experimental)
+
+Enable SIMD-accelerated JSON parsing via `simd-json` on supported architectures:
+
+```sh
+cargo install cor --features simd
+```
+
+**Note:** For typical small log lines (<1KB), the default `serde_json` parser is
+often faster. The `simd` feature benefits large JSON payloads (request/response
+bodies, stack traces) where SIMD's throughput advantage outweighs the copy overhead.
+
 ## Usage
 
 ```sh
@@ -208,6 +220,9 @@ max_field_length = 120
 # Blank lines between entries (0 = compact)
 line_gap = 1
 
+# Minimum width for field key alignment (default: 25)
+key_min_width = 25
+
 # Examples of custom timestamp formats:
 # timestamp_format = "%H:%M:%S%.3f"    # time only with milliseconds
 # timestamp_format = "%H:%M:%S"        # time only, no milliseconds
@@ -223,6 +238,18 @@ timestamp = "ts"
 "verbose" = "debug"
 "critical" = "fatal"
 "success" = "info"
+
+# Custom colors for level badges
+# Available colors: black, red, green, yellow, blue, magenta, purple, cyan, white
+# Bright variants: bright_black, bright_red, bright_green, bright_yellow,
+#                  bright_blue, bright_magenta, bright_cyan, bright_white
+[colors]
+trace = "cyan"
+debug = "blue"
+info = "green"
+warn = "yellow"
+error = "red"
+fatal = "magenta"
 ```
 
 ## Environment variables
@@ -252,6 +279,7 @@ Options:
   -M, --max-field-length <N>       Max field value length [default: 120]
   -g, --line-gap <N>               Blank lines between entries [default: 1]
       --config <PATH>              Path to config file
+  -v, --verbose                    Show parse errors for malformed JSON lines
   -h, --help                       Print help
   -V, --version                    Print version
 ```

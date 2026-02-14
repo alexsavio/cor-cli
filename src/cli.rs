@@ -80,6 +80,13 @@ pub struct Cli {
     /// Path to configuration file.
     #[arg(long)]
     pub config: Option<std::path::PathBuf>,
+
+    /// Show parse errors for lines that look like JSON but fail to parse.
+    ///
+    /// When enabled, lines starting with `{` that fail JSON parsing will
+    /// display the `serde_json` error message after the raw line.
+    #[arg(short = 'v', long)]
+    pub verbose: bool,
 }
 
 /// Color output mode.

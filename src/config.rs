@@ -44,6 +44,12 @@ pub struct Config {
     pub level_aliases: Option<HashMap<String, Level>>,
     /// Number of blank lines inserted between each log entry. 0 = compact (no gaps).
     pub line_gap: usize,
+    /// Minimum width for extra field key alignment (right-justified).
+    pub key_min_width: usize,
+    /// Custom colors for log level badges (maps level → color name).
+    pub level_colors: Option<HashMap<Level, String>>,
+    /// Show parse errors for lines that look like JSON but fail to parse.
+    pub verbose: bool,
 }
 
 impl Default for Config {
@@ -61,6 +67,9 @@ impl Default for Config {
             timestamp_format: "%Y-%m-%dT%H:%M:%S%.3f".to_string(),
             level_aliases: None,
             line_gap: 1,
+            key_min_width: 25,
+            level_colors: None,
+            verbose: false,
         }
     }
 }
@@ -81,30 +90,32 @@ impl Config {
             config.apply_file_config(file_config);
         }
 
-        // CLI overrides
+        // CLI overrides (CLI takes precedence over config file)
         config.color_mode = cli.color;
 
         if let Some(ref level_str) = cli.level {
             config.min_level = Level::from_str_loose(level_str);
         }
 
-        if cli.message_key.is_some() {
-            config.message_key.clone_from(&cli.message_key);
+        // CLI key overrides replace config file settings
+        if let Some(ref key) = cli.message_key {
+            config.message_key = Some(key.clone());
         }
-        if cli.level_key.is_some() {
-            config.level_key.clone_from(&cli.level_key);
+        if let Some(ref key) = cli.level_key {
+            config.level_key = Some(key.clone());
         }
-        if cli.timestamp_key.is_some() {
-            config.timestamp_key.clone_from(&cli.timestamp_key);
+        if let Some(ref key) = cli.timestamp_key {
+            config.timestamp_key = Some(key.clone());
         }
-        if cli.include_fields.is_some() {
-            config.include_fields.clone_from(&cli.include_fields);
+        if let Some(ref fields) = cli.include_fields {
+            config.include_fields = Some(fields.clone());
         }
-        if cli.exclude_fields.is_some() {
-            config.exclude_fields.clone_from(&cli.exclude_fields);
+        if let Some(ref fields) = cli.exclude_fields {
+            config.exclude_fields = Some(fields.clone());
         }
 
         config.json_output = cli.json;
+        config.verbose = cli.verbose;
         if let Some(max_len) = cli.max_field_length {
             config.max_field_length = max_len;
         }
@@ -155,6 +166,10 @@ impl Config {
             self.line_gap = gap;
         }
 
+        if let Some(width) = file.key_min_width {
+            self.key_min_width = width;
+        }
+
         if let Some(keys) = file.keys {
             if let Some(msg) = keys.message {
                 self.message_key = Some(msg);
@@ -178,7 +193,46 @@ impl Config {
                 self.level_aliases = Some(aliases);
             }
         }
+
+        if let Some(colors) = file.colors {
+            let mut level_colors = HashMap::new();
+            for (level_str, color) in colors {
+                if let Some(level) = Level::from_str_loose(&level_str) {
+                    // Validate color name
+                    if is_valid_color(&color) {
+                        level_colors.insert(level, color.to_lowercase());
+                    }
+                }
+            }
+            if !level_colors.is_empty() {
+                self.level_colors = Some(level_colors);
+            }
+        }
     }
+}
+
+/// Check if a color name is valid.
+fn is_valid_color(color: &str) -> bool {
+    matches!(
+        color.to_lowercase().as_str(),
+        "black"
+            | "red"
+            | "green"
+            | "yellow"
+            | "blue"
+            | "magenta"
+            | "purple"
+            | "cyan"
+            | "white"
+            | "bright_black"
+            | "bright_red"
+            | "bright_green"
+            | "bright_yellow"
+            | "bright_blue"
+            | "bright_magenta"
+            | "bright_cyan"
+            | "bright_white"
+    )
 }
 
 /// Config file structure (TOML deserialization).
@@ -189,9 +243,9 @@ struct FileConfig {
     timestamp_format: Option<String>,
     max_field_length: Option<usize>,
     line_gap: Option<usize>,
+    key_min_width: Option<usize>,
     keys: Option<KeysConfig>,
     levels: Option<HashMap<String, String>>,
-    #[allow(dead_code)] // Parsed but not yet used — will support custom level colors
     colors: Option<HashMap<String, String>>,
 }
 
@@ -226,6 +280,7 @@ mod tests {
         assert_eq!(config.timestamp_format, "%Y-%m-%dT%H:%M:%S%.3f");
         assert!(!config.json_output);
         assert_eq!(config.line_gap, 1);
+        assert_eq!(config.key_min_width, 25);
     }
 
     #[test]
@@ -265,6 +320,7 @@ mod tests {
             timestamp_format: Some("%H:%M:%S".to_string()),
             max_field_length: Some(80),
             line_gap: Some(3),
+            key_min_width: Some(30),
             keys: Some(KeysConfig {
                 message: Some("event".to_string()),
                 level: None,
@@ -284,6 +340,7 @@ mod tests {
         assert_eq!(config.message_key.as_deref(), Some("event"));
         assert_eq!(config.max_field_length, 80);
         assert_eq!(config.line_gap, 3);
+        assert_eq!(config.key_min_width, 30);
         assert!(config.level_aliases.is_some());
     }
 
@@ -325,6 +382,7 @@ mod tests {
             timestamp_format: Some("%H:%M".to_string()),
             max_field_length: None,
             line_gap: None,
+            key_min_width: None,
             keys: None,
             levels: None,
             colors: None,
@@ -335,6 +393,7 @@ mod tests {
         assert_eq!(config.timestamp_format, "%H:%M");
         assert_eq!(config.max_field_length, 120);
         assert_eq!(config.line_gap, 1);
+        assert_eq!(config.key_min_width, 25);
     }
 
     #[test]
@@ -347,6 +406,7 @@ mod tests {
             timestamp_format: None,
             max_field_length: None,
             line_gap: None,
+            key_min_width: None,
             keys: None,
             levels: Some({
                 let mut m = HashMap::new();
@@ -375,6 +435,7 @@ mod tests {
             timestamp_format: None,
             max_field_length: None,
             line_gap: None,
+            key_min_width: None,
             keys: None,
             levels: Some({
                 let mut m = HashMap::new();
@@ -399,6 +460,7 @@ mod tests {
             timestamp_format: None,
             max_field_length: None,
             line_gap: None,
+            key_min_width: None,
             keys: None,
             levels: None,
             colors: None,

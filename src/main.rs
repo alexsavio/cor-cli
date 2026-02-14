@@ -10,7 +10,48 @@ use cor::parser::{self, LineKind};
 
 /// Maximum number of continuation lines to buffer when reassembling
 /// multi-line JSON (e.g., exception tracebacks with raw newlines).
+///
+/// This limit prevents unbounded memory growth when a line starts with `{"`
+/// but never forms valid JSON. 200 lines accommodates most real-world
+/// tracebacks while bounding worst-case memory to ~200KB (assuming 1KB/line).
 const MAX_JSON_CONTINUATION_LINES: usize = 200;
+
+/// Convert an I/O result to an optional exit code.
+///
+/// - `Ok(())` → `None` (continue processing)
+/// - `BrokenPipe` → `Some(SUCCESS)` (graceful termination)
+/// - Other errors → `Some(2)` after printing error message
+#[inline]
+fn check_write_result(result: io::Result<()>, context: &str) -> Option<ExitCode> {
+    match result {
+        Ok(()) => None,
+        Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Some(ExitCode::SUCCESS),
+        Err(e) => {
+            eprintln!("cor: {context}: {e}");
+            Some(ExitCode::from(2))
+        }
+    }
+}
+
+/// Write a formatted line with line gap, returning early exit code on error.
+#[inline]
+fn write_entry(
+    writer: &mut BufWriter<io::StdoutLock<'_>>,
+    line_buf: &str,
+    line_gap: usize,
+) -> Option<ExitCode> {
+    if let exit @ Some(_) = check_write_result(writeln!(writer, "{line_buf}"), "write error") {
+        return exit;
+    }
+
+    for _ in 0..line_gap {
+        if let exit @ Some(_) = check_write_result(writeln!(writer), "write error") {
+            return exit;
+        }
+    }
+
+    None
+}
 
 fn main() -> ExitCode {
     // Reset SIGPIPE to default behavior so upstream writers get a clean
@@ -38,12 +79,8 @@ fn main() -> ExitCode {
         return code;
     }
 
-    if let Err(e) = writer.flush() {
-        if e.kind() == io::ErrorKind::BrokenPipe {
-            return ExitCode::SUCCESS;
-        }
-        eprintln!("cor: flush error: {e}");
-        return ExitCode::from(2);
+    if let Some(code) = check_write_result(writer.flush(), "flush error") {
+        return code;
     }
 
     ExitCode::SUCCESS
@@ -75,7 +112,7 @@ fn process_lines(
         let parsed = parser::parse_line(&line, config);
 
         match parsed {
-            LineKind::Raw if might_start_json(&line) => {
+            LineKind::Raw(_) if might_start_json(&line) => {
                 // The line contains '{' but failed to parse — may be split
                 // across multiple lines due to raw newlines in JSON strings.
                 let mut buffer = line;
@@ -95,7 +132,7 @@ fn process_lines(
                     let sanitized = parser::sanitize_json_newlines(&buffer);
                     let re_parsed = parser::parse_line(&sanitized, config);
 
-                    if !matches!(re_parsed, LineKind::Raw) {
+                    if !matches!(re_parsed, LineKind::Raw(_)) {
                         // Successfully assembled — format the sanitized version.
                         line_buf.clear();
                         format_line_parsed(re_parsed, &sanitized, config, use_color, &mut line_buf);
@@ -106,27 +143,13 @@ fn process_lines(
 
                 if !assembled {
                     // Could not reassemble — output each buffered line as raw.
-                    line_buf.clear();
                     for raw_line in buffer.split('\n') {
                         line_buf.clear();
                         format_line(raw_line, config, use_color, &mut line_buf);
-                        if !line_buf.is_empty() {
-                            if let Err(e) = writeln!(writer, "{line_buf}") {
-                                if e.kind() == io::ErrorKind::BrokenPipe {
-                                    return Some(ExitCode::SUCCESS);
-                                }
-                                eprintln!("cor: write error: {e}");
-                                return Some(ExitCode::from(2));
-                            }
-                            for _ in 0..config.line_gap {
-                                if let Err(e) = writeln!(writer) {
-                                    if e.kind() == io::ErrorKind::BrokenPipe {
-                                        return Some(ExitCode::SUCCESS);
-                                    }
-                                    eprintln!("cor: write error: {e}");
-                                    return Some(ExitCode::from(2));
-                                }
-                            }
+                        if !line_buf.is_empty()
+                            && let exit @ Some(_) = write_entry(writer, &line_buf, config.line_gap)
+                        {
+                            return exit;
                         }
                     }
                     continue;
@@ -143,23 +166,8 @@ fn process_lines(
             continue;
         }
 
-        if let Err(e) = writeln!(writer, "{line_buf}") {
-            if e.kind() == io::ErrorKind::BrokenPipe {
-                return Some(ExitCode::SUCCESS);
-            }
-            eprintln!("cor: write error: {e}");
-            return Some(ExitCode::from(2));
-        }
-
-        // Insert blank lines between entries.
-        for _ in 0..config.line_gap {
-            if let Err(e) = writeln!(writer) {
-                if e.kind() == io::ErrorKind::BrokenPipe {
-                    return Some(ExitCode::SUCCESS);
-                }
-                eprintln!("cor: write error: {e}");
-                return Some(ExitCode::from(2));
-            }
+        if let exit @ Some(_) = write_entry(writer, &line_buf, config.line_gap) {
+            return exit;
         }
     }
 

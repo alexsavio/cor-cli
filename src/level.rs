@@ -68,6 +68,17 @@ impl Level {
         }
     }
 
+    /// Returns the [`Style`] for this level's badge, using a custom color if provided.
+    ///
+    /// If `custom_color` is `None`, falls back to the default color scheme.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub fn style_with_color(&self, custom_color: Option<&str>) -> Style {
+        match custom_color {
+            Some(color) => color_name_to_style(color),
+            None => self.style(),
+        }
+    }
+
     /// Parse a string into a [`Level`], case-insensitive.
     ///
     /// Returns `None` for unrecognized strings.
@@ -127,6 +138,32 @@ impl Level {
             }
             _ => None,
         }
+    }
+}
+
+/// Convert a color name string to an [`owo_colors::Style`].
+///
+/// Supports standard ANSI colors and bright variants. All styles are bold.
+/// Unknown colors fall back to white bold.
+fn color_name_to_style(color: &str) -> Style {
+    match color.to_lowercase().as_str() {
+        "black" => Style::new().black().bold(),
+        "red" => Style::new().red().bold(),
+        "green" => Style::new().green().bold(),
+        "yellow" => Style::new().yellow().bold(),
+        "blue" => Style::new().blue().bold(),
+        "magenta" | "purple" => Style::new().magenta().bold(),
+        "cyan" => Style::new().cyan().bold(),
+        "bright_black" => Style::new().bright_black().bold(),
+        "bright_red" => Style::new().bright_red().bold(),
+        "bright_green" => Style::new().bright_green().bold(),
+        "bright_yellow" => Style::new().bright_yellow().bold(),
+        "bright_blue" => Style::new().bright_blue().bold(),
+        "bright_magenta" => Style::new().bright_magenta().bold(),
+        "bright_cyan" => Style::new().bright_cyan().bold(),
+        "bright_white" => Style::new().bright_white().bold(),
+        // "white" and unknown colors
+        _ => Style::new().white().bold(),
     }
 }
 
