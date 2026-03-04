@@ -13,7 +13,8 @@
 //! let config = Config::default();
 //! let mut out = String::new();
 //!
-//! format_line(r#"{"level":"info","msg":"hello","port":8080}"#, &config, false, &mut out);
+//! owo_colors::set_override(false);
+//! format_line(r#"{"level":"info","msg":"hello","port":8080}"#, &config, &mut out);
 //! assert!(out.contains("INFO"));
 //! assert!(out.contains("hello"));
 //! ```
