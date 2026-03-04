@@ -30,6 +30,12 @@ pub struct Config {
     pub level_key: Option<String>,
     /// Custom JSON key for the timestamp field (overrides alias table).
     pub timestamp_key: Option<String>,
+    /// Custom JSON key for the logger name field (overrides alias table).
+    pub logger_key: Option<String>,
+    /// Custom JSON key for the caller/source field (overrides alias table).
+    pub caller_key: Option<String>,
+    /// Custom JSON key for the error field (overrides alias table).
+    pub error_key: Option<String>,
     /// Whitelist of extra fields to display (mutually exclusive with `exclude_fields`).
     pub include_fields: Option<Vec<String>>,
     /// Blacklist of extra fields to hide (mutually exclusive with `include_fields`).
@@ -60,6 +66,9 @@ impl Default for Config {
             message_key: None,
             level_key: None,
             timestamp_key: None,
+            logger_key: None,
+            caller_key: None,
+            error_key: None,
             include_fields: None,
             exclude_fields: None,
             json_output: false,
@@ -106,6 +115,15 @@ impl Config {
         }
         if let Some(ref key) = cli.timestamp_key {
             config.timestamp_key = Some(key.clone());
+        }
+        if let Some(ref key) = cli.logger_key {
+            config.logger_key = Some(key.clone());
+        }
+        if let Some(ref key) = cli.caller_key {
+            config.caller_key = Some(key.clone());
+        }
+        if let Some(ref key) = cli.error_key {
+            config.error_key = Some(key.clone());
         }
         if let Some(ref fields) = cli.include_fields {
             config.include_fields = Some(fields.clone());
@@ -180,6 +198,15 @@ impl Config {
             if let Some(ts) = keys.timestamp {
                 self.timestamp_key = Some(ts);
             }
+            if let Some(logger) = keys.logger {
+                self.logger_key = Some(logger);
+            }
+            if let Some(caller) = keys.caller {
+                self.caller_key = Some(caller);
+            }
+            if let Some(error) = keys.error {
+                self.error_key = Some(error);
+            }
         }
 
         if let Some(levels) = file.levels {
@@ -230,6 +257,9 @@ struct KeysConfig {
     message: Option<String>,
     level: Option<String>,
     timestamp: Option<String>,
+    logger: Option<String>,
+    caller: Option<String>,
+    error: Option<String>,
 }
 
 impl FileConfig {
@@ -301,6 +331,9 @@ mod tests {
                 message: Some("event".to_string()),
                 level: None,
                 timestamp: None,
+                logger: None,
+                caller: None,
+                error: None,
             }),
             levels: Some({
                 let mut m = HashMap::new();

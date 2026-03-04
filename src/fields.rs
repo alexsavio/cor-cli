@@ -39,17 +39,14 @@ pub const MESSAGE_ALIASES: &[&str] = &[
 ];
 
 /// Known aliases for logger name fields.
-#[allow(dead_code)] // Ready for use when logger field extraction is added
 pub const LOGGER_ALIASES: &[&str] = &["logger", "name", "logger_name", "component", "module"];
 
 /// Known aliases for caller/source fields.
-#[allow(dead_code)] // Ready for use when caller field extraction is added
 pub const CALLER_ALIASES: &[&str] = &[
     "caller", "source", "src", "location", "file", "func", "function",
 ];
 
 /// Known aliases for error fields.
-#[allow(dead_code)] // Ready for use when error field extraction is added
 pub const ERROR_ALIASES: &[&str] = &[
     "error",
     "err",
@@ -76,7 +73,6 @@ pub fn find_and_remove(
 }
 
 /// Look up the first matching alias key in a JSON object without removing it.
-#[allow(dead_code)] // Public API for read-only alias lookup
 pub fn find_key<'a>(
     map: &'a serde_json::Map<String, serde_json::Value>,
     aliases: &[&'a str],

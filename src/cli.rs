@@ -36,6 +36,18 @@ pub struct Cli {
     #[arg(short = 't', long)]
     pub timestamp_key: Option<String>,
 
+    /// Override the JSON key used for the logger name field.
+    #[arg(long)]
+    pub logger_key: Option<String>,
+
+    /// Override the JSON key used for the caller/source location field.
+    #[arg(long)]
+    pub caller_key: Option<String>,
+
+    /// Override the JSON key used for the error/stacktrace field.
+    #[arg(long)]
+    pub error_key: Option<String>,
+
     /// Only show these extra fields (comma-separated).
     ///
     /// Cannot be used with `--exclude-fields`.

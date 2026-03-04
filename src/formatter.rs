@@ -140,6 +140,15 @@ fn format_record(record: &LogRecord, prefix: Option<&str>, config: &Config, out:
         out.push(':');
     }
 
+    // Logger name (dimmed, after level badge)
+    if let Some(ref logger) = record.logger {
+        let _ = write!(
+            out,
+            " {}",
+            logger.if_supports_color(Stdout, |t| t.dimmed().to_string())
+        );
+    }
+
     // Prefix (bold cyan when colored)
     if let Some(pfx) = prefix {
         let _ = write!(
@@ -153,6 +162,15 @@ fn format_record(record: &LogRecord, prefix: Option<&str>, config: &Config, out:
     if let Some(ref msg) = record.message {
         out.push(' ');
         out.push_str(msg);
+    }
+
+    // Caller (dimmed, in parentheses after message)
+    if let Some(ref caller) = record.caller {
+        let _ = write!(
+            out,
+            " ({})",
+            caller.if_supports_color(Stdout, |t| t.dimmed().to_string())
+        );
     }
 
     // Extra fields — each on a new line with right-justified key
@@ -181,6 +199,46 @@ fn format_record(record: &LogRecord, prefix: Option<&str>, config: &Config, out:
             format!("{key:>key_width$}")
                 .if_supports_color(Stdout, |t| t.truecolor(150, 150, 150).bold().to_string()),
             val_display
+        );
+    }
+
+    // Error field (red, with multiline support for stacktraces)
+    if let Some(ref error) = record.error {
+        format_error_field(error, key_width, out);
+    }
+}
+
+/// Format the error field with red styling and multiline stacktrace support.
+fn format_error_field(error: &str, key_width: usize, out: &mut String) {
+    let label = format!("{:>key_width$}", "error");
+    let styled_label = label.if_supports_color(Stdout, |t| t.red().bold().to_string());
+
+    if error.contains('\n') {
+        // Multiline error: indent continuation lines to align with value column
+        let indent = " ".repeat(key_width + 2); // key_width + ": "
+        let mut lines = error.lines();
+        if let Some(first) = lines.next() {
+            let _ = write!(
+                out,
+                "\n{}: {}",
+                styled_label,
+                first.if_supports_color(Stdout, |t| t.red().to_string())
+            );
+            for line in lines {
+                let _ = write!(
+                    out,
+                    "\n{}{}",
+                    indent,
+                    line.if_supports_color(Stdout, |t| t.red().to_string())
+                );
+            }
+        }
+    } else {
+        let _ = write!(
+            out,
+            "\n{}: {}",
+            styled_label,
+            error.if_supports_color(Stdout, |t| t.red().to_string())
         );
     }
 }

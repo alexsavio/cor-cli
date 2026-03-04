@@ -249,7 +249,7 @@ fn extremely_long_line_no_crash() {
 
 #[test]
 fn string_values_unquoted() {
-    let input = r#"{"level":"info","msg":"test","name":"John"}"#;
+    let input = r#"{"level":"info","msg":"test","user":"John"}"#;
     let output = cor()
         .arg("--color=never")
         .write_stdin(input)
@@ -257,11 +257,11 @@ fn string_values_unquoted() {
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("name: John"),
+        stdout.contains("user: John"),
         "String values should be unquoted"
     );
     assert!(
-        !stdout.contains("name: \"John\""),
+        !stdout.contains("user: \"John\""),
         "String values should NOT be quoted"
     );
 }

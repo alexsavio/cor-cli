@@ -9,11 +9,11 @@ Colorize JSON-structured log lines from stdin.
 human-readable output to stdout. Non-JSON lines pass through unchanged.
 
 ```text
-$ echo '{"level":"info","ts":"2026-01-15T10:30:01.456Z","msg":"server started","host":"0.0.0.0","port":8080}' | cor
+$ echo '{"level":"info","ts":"2026-01-15T10:30:01.456Z","msg":"request completed","logger":"http.server","caller":"server/router.go:118","method":"GET","status":200}' | cor
 
-2026-01-15T10:30:01.456   INFO: server started
-                                host: 0.0.0.0
-                                port: 8080
+2026-01-15T10:30:01.456   INFO: http.server request completed (server/router.go:118)
+                   method: GET
+                   status: 200
 ```
 
 > **Why "cor"?** — *Cor* (pronounced /koɾ/) means "color" in Portuguese. Because naming a log colorizer "color" felt too obvious, we went with the version that sounds cooler and confuses spellcheckers.
@@ -56,13 +56,20 @@ $ echo '{"level":"info","ts":"2026-01-15T10:30:01.456Z","msg":"server started","
 
 ![Truncate fields](https://raw.githubusercontent.com/alexsavio/cor-cli/main/assets/demo/06-truncate-fields.png)
 
+### Logger, caller, and error fields
+
+`cat logs.jsonl | cor --level error`
+
+![Structured fields](https://raw.githubusercontent.com/alexsavio/cor-cli/main/assets/demo/07-structured-fields.png)
+
 ## Features
 
 - **Auto-detects fields** from logrus, zap, slog, pino, bunyan, structlog, and more
+- **First-class structured fields** — logger name, caller location, and error/stacktrace get dedicated formatting
 - **Embedded JSON** — handles lines like `2026-01-15 10:30:00 {"level":"info",...}`
 - **Level filtering** — `--level warn` suppresses debug and info
 - **Numeric levels** — bunyan/pino `30`→info, `40`→warn, etc.
-- **Custom keys** — `--message-key`, `--level-key`, `--timestamp-key`
+- **Custom keys** — `--message-key`, `--level-key`, `--timestamp-key`, `--logger-key`, `--caller-key`, `--error-key`
 - **Field filtering** — `--include-fields` or `--exclude-fields`
 - **JSON passthrough** — `--json` outputs filtered JSON for piping
 - **Truncation** — long values truncated at 120 chars (configurable)
@@ -111,6 +118,9 @@ kubectl logs my-pod | cor --level warn
 # Custom keys
 my-app | cor --message-key event --level-key severity
 
+# Custom keys for logger, caller, error
+my-app | cor --logger-key source --caller-key origin --error-key stacktrace
+
 # Only show specific fields
 my-app | cor --include-fields=host,port,status
 
@@ -136,16 +146,20 @@ my-app | cor --color=always | less -R
 ## Output format
 
 ```text
-YYYY-MM-DDTHH:MM:SS.mmm  LEVEL: message
+YYYY-MM-DDTHH:MM:SS.mmm  LEVEL: logger message (caller)
                                       key: value
                                 other_key: other_value
+                                    error: error message or stacktrace
 ```
 
 - **Timestamp** — bold `YYYY-MM-DDTHH:MM:SS.mmm` in UTC
 - **Level** — colored and bold, right-justified in a 5-char field
   - <span style="color:cyan">TRACE</span> · <span style="color:blue">DEBUG</span> · <span style="color:green"> INFO</span> · <span style="color:yellow"> WARN</span> · <span style="color:red">ERROR</span> · <span style="color:magenta">FATAL</span>
+- **Logger** — dimmed, after level badge (e.g., `http.server`)
 - **Message** — plain text
+- **Caller** — dimmed, in parentheses after message (e.g., `(server/router.go:118)`)
 - **Extra fields** — one per line, key right-justified to 25 chars, bold gray
+- **Error** — red, after extra fields; multiline stacktraces are preserved and indented
 
 ## Log levels
 
@@ -171,8 +185,11 @@ Custom level aliases can be defined in the config file.
 | Timestamp | `time`, `ts`, `timestamp`, `@timestamp`, `datetime`, `date`, `t`  |
 | Level     | `level`, `severity`, `loglevel`, `log_level`, `lvl`, `priority`   |
 | Message   | `msg`, `message`, `text`, `log`, `body`, `event`, `short_message` |
+| Logger    | `logger`, `name`, `logger_name`, `component`, `module`            |
+| Caller    | `caller`, `source`, `src`, `location`, `file`, `func`, `function` |
+| Error     | `error`, `err`, `exception`, `exc_info`, `stack_trace`, `stacktrace`, `stack` |
 
-CLI flags (`--message-key`, `--level-key`, `--timestamp-key`) override auto-detection.
+CLI flags (`--message-key`, `--level-key`, `--timestamp-key`, `--logger-key`, `--caller-key`, `--error-key`) override auto-detection.
 
 ## Embedded JSON
 
@@ -232,6 +249,9 @@ key_min_width = 25
 message = "msg"
 level = "level"
 timestamp = "ts"
+logger = "logger"
+caller = "caller"
+error = "error"
 
 # Map custom level names → standard levels
 [levels]
@@ -273,6 +293,9 @@ Options:
   -m, --message-key <KEY>          Override message field key
       --level-key <KEY>            Override level field key
   -t, --timestamp-key <KEY>        Override timestamp field key
+      --logger-key <KEY>           Override logger name field key
+      --caller-key <KEY>           Override caller/source field key
+      --error-key <KEY>            Override error/stacktrace field key
   -i, --include-fields <FIELDS>    Only show these fields (comma-separated)
   -e, --exclude-fields <FIELDS>    Hide these fields (comma-separated)
   -j, --json                       Output raw JSON instead of colorized text
