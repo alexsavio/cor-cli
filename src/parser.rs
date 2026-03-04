@@ -46,6 +46,12 @@ pub struct LogRecord {
     pub timestamp: Option<Timestamp>,
     pub level: Option<Level>,
     pub message: Option<String>,
+    /// Logger name (e.g., `payments.processor`).
+    pub logger: Option<String>,
+    /// Caller/source location (e.g., `server/handler.go:42`).
+    pub caller: Option<String>,
+    /// Error message or stacktrace.
+    pub error: Option<String>,
     /// Remaining fields, ordered alphabetically.
     pub extra: BTreeMap<String, serde_json::Value>,
     /// The original raw JSON string (for `--json` mode passthrough).
@@ -168,6 +174,11 @@ fn try_parse_json_str(s: &str, config: &Config) -> Result<LogRecord, ParseError>
     // Extract message
     let message = extract_message(&mut map, config);
 
+    // Extract logger, caller, error (before flatten so they don't end up in extra)
+    let logger = extract_logger(&mut map, config);
+    let caller = extract_caller(&mut map, config);
+    let error = extract_error(&mut map, config);
+
     // Flatten remaining fields (1 level of dot-notation)
     let extra = flatten_extra(map);
 
@@ -175,6 +186,9 @@ fn try_parse_json_str(s: &str, config: &Config) -> Result<LogRecord, ParseError>
         timestamp,
         level,
         message,
+        logger,
+        caller,
+        error,
         extra,
         raw_json: s.to_string(),
     })
@@ -217,6 +231,42 @@ fn extract_message(
         map.remove(key.as_str()).and_then(value_to_string)
     } else {
         fields::find_and_remove(map, fields::MESSAGE_ALIASES).and_then(|(_, v)| value_to_string(v))
+    }
+}
+
+/// Extract the logger field using config override or alias table.
+fn extract_logger(
+    map: &mut serde_json::Map<String, serde_json::Value>,
+    config: &Config,
+) -> Option<String> {
+    if let Some(ref key) = config.logger_key {
+        map.remove(key.as_str()).and_then(value_to_string)
+    } else {
+        fields::find_and_remove(map, fields::LOGGER_ALIASES).and_then(|(_, v)| value_to_string(v))
+    }
+}
+
+/// Extract the caller field using config override or alias table.
+fn extract_caller(
+    map: &mut serde_json::Map<String, serde_json::Value>,
+    config: &Config,
+) -> Option<String> {
+    if let Some(ref key) = config.caller_key {
+        map.remove(key.as_str()).and_then(value_to_string)
+    } else {
+        fields::find_and_remove(map, fields::CALLER_ALIASES).and_then(|(_, v)| value_to_string(v))
+    }
+}
+
+/// Extract the error field using config override or alias table.
+fn extract_error(
+    map: &mut serde_json::Map<String, serde_json::Value>,
+    config: &Config,
+) -> Option<String> {
+    if let Some(ref key) = config.error_key {
+        map.remove(key.as_str()).and_then(value_to_string)
+    } else {
+        fields::find_and_remove(map, fields::ERROR_ALIASES).and_then(|(_, v)| value_to_string(v))
     }
 }
 

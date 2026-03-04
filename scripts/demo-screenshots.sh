@@ -73,6 +73,11 @@ shot "$OUT_DIR/06-truncate-fields.png" \
   "cat assets/demo.jsonl | cor --max-field-length 20" \
   "cat assets/demo.jsonl | cor -c always --max-field-length 20"
 
+# 7 — Logger, caller, and error fields
+shot "$OUT_DIR/07-structured-fields.png" \
+  "cat assets/demo.jsonl | cor --level error" \
+  "cat assets/demo.jsonl | cor -c always --level error"
+
 echo ""
 echo "Done! Screenshots saved to $OUT_DIR:"
 ls -1 "$OUT_DIR"

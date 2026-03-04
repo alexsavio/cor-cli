@@ -271,8 +271,8 @@ fn multiline_json_with_raw_newlines_in_exception() {
         "Error message should be extracted.\nGot: {stdout}"
     );
     assert!(
-        stdout.contains("exception:"),
-        "Exception field should appear in extra fields.\nGot: {stdout}"
+        stdout.contains("error:"),
+        "Exception field should appear as error field.\nGot: {stdout}"
     );
 
     // Info line should also be formatted
@@ -331,7 +331,7 @@ fn double_escaped_json_parsed_as_error() {
         "Message should be extracted from double-escaped JSON.\nGot: {stdout}"
     );
     assert!(
-        stdout.contains("exception:"),
-        "Exception field should appear.\nGot: {stdout}"
+        stdout.contains("error:"),
+        "Exception field should appear as error field.\nGot: {stdout}"
     );
 }
