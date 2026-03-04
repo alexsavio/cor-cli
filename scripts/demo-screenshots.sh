@@ -18,7 +18,11 @@ TMPBIN="$(mktemp -d)"
 ln -sf "$BIN" "$TMPBIN/cor"
 export PATH="$TMPBIN:$PATH"
 
-trap 'rm -rf "$TMPBIN"' EXIT
+# Create an empty config so user's ~/.config/cor/config.toml doesn't affect screenshots
+TMPCFG="$(mktemp)"
+: > "$TMPCFG"
+
+trap 'rm -rf "$TMPBIN" "$TMPCFG"' EXIT
 
 echo "Generating demo screenshots in $OUT_DIR ..."
 
@@ -43,40 +47,43 @@ shot() {
   rm -f "$tmpraw"
 }
 
+# All actual commands use --config "$TMPCFG" to ignore user's config file.
+# The display command (shown in screenshot) omits it for cleaner presentation.
+
 # 1 — Default colorized output
 shot "$OUT_DIR/01-default.png" \
   "cat assets/demo.jsonl | cor" \
-  "cat assets/demo.jsonl | cor -c always"
+  "cat assets/demo.jsonl | cor -c always --config $TMPCFG"
 
 # 2 — Filter: warn and above
 shot "$OUT_DIR/02-level-filter.png" \
   "cat assets/demo.jsonl | cor --level warn" \
-  "cat assets/demo.jsonl | cor -c always --level warn"
+  "cat assets/demo.jsonl | cor -c always --level warn --config $TMPCFG"
 
 # 3 — Include only specific fields
 shot "$OUT_DIR/03-include-fields.png" \
   "cat assets/demo.jsonl | cor -i method,path,status" \
-  "cat assets/demo.jsonl | cor -c always -i method,path,status"
+  "cat assets/demo.jsonl | cor -c always -i method,path,status --config $TMPCFG"
 
 # 4 — Exclude fields
 shot "$OUT_DIR/04-exclude-fields.png" \
   "cat assets/demo.jsonl | cor -e func,query" \
-  "cat assets/demo.jsonl | cor -c always -e func,query"
+  "cat assets/demo.jsonl | cor -c always -e func,query --config $TMPCFG"
 
 # 5 — JSON output (filtered)
 shot "$OUT_DIR/05-json-output.png" \
   "cat assets/demo.jsonl | cor --json --level error | grep -v '^$'" \
-  "cat assets/demo.jsonl | cor -c always --json --level error | grep -v '^$'"
+  "cat assets/demo.jsonl | cor -c always --json --level error --config $TMPCFG | grep -v '^$'"
 
 # 6 — Truncate long field values
 shot "$OUT_DIR/06-truncate-fields.png" \
   "cat assets/demo.jsonl | cor --max-field-length 20" \
-  "cat assets/demo.jsonl | cor -c always --max-field-length 20"
+  "cat assets/demo.jsonl | cor -c always --max-field-length 20 --config $TMPCFG"
 
 # 7 — Logger, caller, and error fields
 shot "$OUT_DIR/07-structured-fields.png" \
   "cat assets/demo.jsonl | cor --level error" \
-  "cat assets/demo.jsonl | cor -c always --level error"
+  "cat assets/demo.jsonl | cor -c always --level error --config $TMPCFG"
 
 echo ""
 echo "Done! Screenshots saved to $OUT_DIR:"
