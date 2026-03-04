@@ -42,6 +42,7 @@ fn generate_log_batch(count: usize) -> Vec<String> {
 }
 
 fn bench_parse_and_format(c: &mut Criterion) {
+    owo_colors::set_override(false);
     let config = cor::Config::default();
     let lines = generate_log_batch(1000);
 
@@ -53,7 +54,7 @@ fn bench_parse_and_format(c: &mut Criterion) {
         b.iter(|| {
             for line in &lines {
                 out.clear();
-                cor::format_line(black_box(line), &config, false, &mut out);
+                cor::format_line(black_box(line), &config, &mut out);
                 black_box(&out);
             }
         });
@@ -104,7 +105,7 @@ fn bench_format_mixed_input(c: &mut Criterion) {
         b.iter(|| {
             for line in &lines {
                 out.clear();
-                cor::format_line(black_box(line), &config, false, &mut out);
+                cor::format_line(black_box(line), &config, &mut out);
                 black_box(&out);
             }
         });
@@ -148,7 +149,7 @@ fn bench_line_sizes(c: &mut Criterion) {
             let mut out = String::with_capacity(line.len() * 2);
             b.iter(|| {
                 out.clear();
-                cor::format_line(black_box(line), &config, false, &mut out);
+                cor::format_line(black_box(line), &config, &mut out);
                 black_box(&out);
             });
         });
@@ -172,7 +173,7 @@ fn bench_level_filtering(c: &mut Criterion) {
         b.iter(|| {
             for line in &lines {
                 out.clear();
-                cor::format_line(black_box(line), &config, false, &mut out);
+                cor::format_line(black_box(line), &config, &mut out);
                 black_box(&out);
             }
         });
@@ -202,7 +203,7 @@ fn bench_embedded_json(c: &mut Criterion) {
         b.iter(|| {
             for line in &lines {
                 out.clear();
-                cor::format_line(black_box(line), &config, false, &mut out);
+                cor::format_line(black_box(line), &config, &mut out);
                 black_box(&out);
             }
         });

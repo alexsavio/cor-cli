@@ -1,4 +1,4 @@
-use std::io::{self, BufRead, BufWriter, IsTerminal, Write};
+use std::io::{self, BufRead, BufWriter, Write};
 use std::process::ExitCode;
 
 use clap::Parser;
@@ -68,13 +68,17 @@ fn main() -> ExitCode {
         }
     };
 
-    let use_color = resolve_color_mode(config.color_mode);
+    match config.color_mode {
+        ColorMode::Always => owo_colors::set_override(true),
+        ColorMode::Never => owo_colors::set_override(false),
+        ColorMode::Auto => {} // owo-colors auto-detects via supports-color
+    }
 
     let stdin = io::stdin();
     let stdout = io::stdout();
     let mut writer = BufWriter::new(stdout.lock());
 
-    let exit = process_lines(stdin.lock().lines(), &config, use_color, &mut writer);
+    let exit = process_lines(stdin.lock().lines(), &config, &mut writer);
     if let Some(code) = exit {
         return code;
     }
@@ -93,7 +97,6 @@ fn main() -> ExitCode {
 fn process_lines(
     mut lines_iter: impl Iterator<Item = io::Result<String>>,
     config: &Config,
-    use_color: bool,
     writer: &mut BufWriter<io::StdoutLock<'_>>,
 ) -> Option<ExitCode> {
     let mut line_buf = String::new();
@@ -135,7 +138,7 @@ fn process_lines(
                     if !matches!(re_parsed, LineKind::Raw(_)) {
                         // Successfully assembled — format the sanitized version.
                         line_buf.clear();
-                        format_line_parsed(re_parsed, &sanitized, config, use_color, &mut line_buf);
+                        format_line_parsed(re_parsed, &sanitized, config, &mut line_buf);
                         assembled = true;
                         break;
                     }
@@ -145,7 +148,7 @@ fn process_lines(
                     // Could not reassemble — output each buffered line as raw.
                     for raw_line in buffer.split('\n') {
                         line_buf.clear();
-                        format_line(raw_line, config, use_color, &mut line_buf);
+                        format_line(raw_line, config, &mut line_buf);
                         if !line_buf.is_empty()
                             && let exit @ Some(_) = write_entry(writer, &line_buf, config.line_gap)
                         {
@@ -157,7 +160,7 @@ fn process_lines(
             }
             _ => {
                 line_buf.clear();
-                format_line_parsed(parsed, &line, config, use_color, &mut line_buf);
+                format_line_parsed(parsed, &line, config, &mut line_buf);
             }
         }
 
@@ -186,29 +189,6 @@ fn might_start_json(line: &str) -> bool {
         after_brace.trim_start().starts_with('"')
     } else {
         false
-    }
-}
-
-fn resolve_color_mode(mode: ColorMode) -> bool {
-    match mode {
-        ColorMode::Always => true,
-        ColorMode::Never => false,
-        ColorMode::Auto => {
-            let stdout = io::stdout();
-            if !stdout.is_terminal() {
-                return false;
-            }
-            if std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty()) {
-                return false;
-            }
-            if std::env::var("TERM").is_ok_and(|v| v == "dumb") {
-                return false;
-            }
-            if std::env::var_os("FORCE_COLOR").is_some_and(|v| !v.is_empty()) {
-                return true;
-            }
-            true
-        }
     }
 }
 

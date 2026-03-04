@@ -73,8 +73,8 @@ impl Level {
     /// If `custom_color` is `None`, falls back to the default color scheme.
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn style_with_color(&self, custom_color: Option<&str>) -> Style {
-        match custom_color {
-            Some(color) => color_name_to_style(color),
+        match custom_color.and_then(color_name_to_style) {
+            Some(style) => style,
             None => self.style(),
         }
     }
@@ -144,9 +144,9 @@ impl Level {
 /// Convert a color name string to an [`owo_colors::Style`].
 ///
 /// Supports standard ANSI colors and bright variants. All styles are bold.
-/// Unknown colors fall back to white bold.
-fn color_name_to_style(color: &str) -> Style {
-    match color.to_lowercase().as_str() {
+/// Returns `None` for unrecognized color names.
+pub fn color_name_to_style(color: &str) -> Option<Style> {
+    let style = match color.to_lowercase().as_str() {
         "black" => Style::new().black().bold(),
         "red" => Style::new().red().bold(),
         "green" => Style::new().green().bold(),
@@ -154,6 +154,7 @@ fn color_name_to_style(color: &str) -> Style {
         "blue" => Style::new().blue().bold(),
         "magenta" | "purple" => Style::new().magenta().bold(),
         "cyan" => Style::new().cyan().bold(),
+        "white" => Style::new().white().bold(),
         "bright_black" => Style::new().bright_black().bold(),
         "bright_red" => Style::new().bright_red().bold(),
         "bright_green" => Style::new().bright_green().bold(),
@@ -162,9 +163,9 @@ fn color_name_to_style(color: &str) -> Style {
         "bright_magenta" => Style::new().bright_magenta().bold(),
         "bright_cyan" => Style::new().bright_cyan().bold(),
         "bright_white" => Style::new().bright_white().bold(),
-        // "white" and unknown colors
-        _ => Style::new().white().bold(),
-    }
+        _ => return None,
+    };
+    Some(style)
 }
 
 impl fmt::Display for Level {

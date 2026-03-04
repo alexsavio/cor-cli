@@ -12,7 +12,7 @@ use serde::Deserialize;
 
 use crate::cli::{Cli, ColorMode};
 use crate::error::CorError;
-use crate::level::Level;
+use crate::level::{Level, color_name_to_style};
 
 /// Runtime configuration merged from defaults, config file, and CLI arguments.
 ///
@@ -199,7 +199,7 @@ impl Config {
             for (level_str, color) in colors {
                 if let Some(level) = Level::from_str_loose(&level_str) {
                     // Validate color name
-                    if is_valid_color(&color) {
+                    if color_name_to_style(&color).is_some() {
                         level_colors.insert(level, color.to_lowercase());
                     }
                 }
@@ -209,30 +209,6 @@ impl Config {
             }
         }
     }
-}
-
-/// Check if a color name is valid.
-fn is_valid_color(color: &str) -> bool {
-    matches!(
-        color.to_lowercase().as_str(),
-        "black"
-            | "red"
-            | "green"
-            | "yellow"
-            | "blue"
-            | "magenta"
-            | "purple"
-            | "cyan"
-            | "white"
-            | "bright_black"
-            | "bright_red"
-            | "bright_green"
-            | "bright_yellow"
-            | "bright_blue"
-            | "bright_magenta"
-            | "bright_cyan"
-            | "bright_white"
-    )
 }
 
 /// Config file structure (TOML deserialization).
