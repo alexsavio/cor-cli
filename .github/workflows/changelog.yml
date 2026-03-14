@@ -30,7 +30,7 @@ jobs:
           tool: git-cliff@2.12.0
 
       - name: Install rumdl
-        run: cargo install rumdl
+        run: cargo install rumdl@0.1.42
 
       - name: Format changelog
         run: rumdl fmt CHANGELOG.md
