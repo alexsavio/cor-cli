@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.PATCH).
 
+## [2026.3.1] - 2026-03-14
+
+### 🚀 Features
+
+- *(cli)* Add 7 new CLI features for filtering, display, and input
+
+### 🧪 Testing
+
+- Add comprehensive test coverage and validate explicit --config path
+
+### ⚙️ Miscellaneous Tasks
+
+- Pin rumdl to 0.1.42 for rustc 1.93 compatibility
+- Pin rumdl to 0.1.42 in changelog workflow
+- Cache rumdl binary and use prebuilt cargo-tarpaulin
+
 ## [2026.3.0] - 2026-03-04
 
 ### 🚀 Features
@@ -14,6 +30,10 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 ### 🚜 Refactor
 
 - Replace use_color param with owo-colors override system (#1)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release v2026.3.0
 
 ## [2026.2.6] - 2026-02-14
 
