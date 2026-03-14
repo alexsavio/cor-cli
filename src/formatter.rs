@@ -39,8 +39,7 @@ pub fn format_line(line: &str, config: &Config, out: &mut String) {
 pub fn format_line_parsed(parsed: LineKind, raw_line: &str, config: &Config, out: &mut String) {
     match parsed {
         LineKind::Json(record) => {
-            if should_filter(&record, config) {
-                // Line filtered out — signal empty output
+            if should_filter(&record, config) || !grep_matches_record(&record, config) {
                 out.clear();
                 return;
             }
@@ -51,7 +50,7 @@ pub fn format_line_parsed(parsed: LineKind, raw_line: &str, config: &Config, out
             }
         }
         LineKind::EmbeddedJson { prefix, record } => {
-            if should_filter(&record, config) {
+            if should_filter(&record, config) || !grep_matches_record(&record, config) {
                 out.clear();
                 return;
             }
@@ -63,11 +62,16 @@ pub fn format_line_parsed(parsed: LineKind, raw_line: &str, config: &Config, out
         }
         LineKind::Raw(parse_error) => {
             if config.json_output {
-                // Non-JSON lines suppressed in --json mode
                 out.clear();
                 return;
             }
-            // Pass through unchanged
+            // Grep filter for raw lines
+            if let Some(ref re) = config.grep_pattern
+                && !re.is_match(raw_line)
+            {
+                out.clear();
+                return;
+            }
             out.push_str(raw_line);
 
             // In verbose mode, show parse error if present
@@ -86,6 +90,41 @@ pub fn format_line_parsed(parsed: LineKind, raw_line: &str, config: &Config, out
             }
         }
     }
+}
+
+/// Check if a record matches the grep pattern (returns true if no pattern or match found).
+#[inline]
+fn grep_matches_record(record: &LogRecord, config: &Config) -> bool {
+    let Some(ref re) = config.grep_pattern else {
+        return true;
+    };
+    if let Some(ref msg) = record.message
+        && re.is_match(msg)
+    {
+        return true;
+    }
+    if let Some(ref logger) = record.logger
+        && re.is_match(logger)
+    {
+        return true;
+    }
+    if let Some(ref caller) = record.caller
+        && re.is_match(caller)
+    {
+        return true;
+    }
+    if let Some(ref error) = record.error
+        && re.is_match(error)
+    {
+        return true;
+    }
+    for value in record.extra.values() {
+        let val_str = format_value(value);
+        if re.is_match(&val_str) {
+            return true;
+        }
+    }
+    false
 }
 
 /// Check if a record should be filtered out by level.
@@ -113,7 +152,7 @@ fn should_filter(record: &LogRecord, config: &Config) -> bool {
 fn format_record(record: &LogRecord, prefix: Option<&str>, config: &Config, out: &mut String) {
     // Timestamp (bold when colored)
     if let Some(ref ts) = record.timestamp {
-        let ts_str = ts.format_with(&config.timestamp_format);
+        let ts_str = ts.format_with_tz(&config.timestamp_format, &config.timezone);
         let _ = write!(
             out,
             "{}  ",
@@ -173,38 +212,67 @@ fn format_record(record: &LogRecord, prefix: Option<&str>, config: &Config, out:
         );
     }
 
-    // Extra fields — each on a new line with right-justified key
+    // Extra fields + error
+    format_extra_fields(record, config, out);
+}
+
+/// Render extra fields and the error field according to config settings.
+fn format_extra_fields(record: &LogRecord, config: &Config, out: &mut String) {
     let max_len = config.max_field_length;
     let key_width = config.key_min_width;
 
-    for (key, value) in &record.extra {
-        // Apply include/exclude filtering
-        if let Some(ref include) = config.include_fields
-            && !include.iter().any(|f| f == key)
-        {
-            continue;
-        }
-        if let Some(ref exclude) = config.exclude_fields
-            && exclude.iter().any(|f| f == key)
-        {
-            continue;
-        }
+    if !config.no_extra {
+        for (key, value) in &record.extra {
+            if let Some(ref include) = config.include_fields
+                && !include.iter().any(|f| f == key)
+            {
+                continue;
+            }
+            if let Some(ref exclude) = config.exclude_fields
+                && exclude.iter().any(|f| f == key)
+            {
+                continue;
+            }
+            let val_str = format_value(value);
+            let val_display = truncate_value(&val_str, max_len);
 
-        let val_str = format_value(value);
-        let val_display = truncate_value(&val_str, max_len);
-
-        let _ = write!(
-            out,
-            "\n{}: {}",
-            format!("{key:>key_width$}")
-                .if_supports_color(Stdout, |t| t.truecolor(150, 150, 150).bold().to_string()),
-            val_display
-        );
+            if config.single_line {
+                let _ = write!(
+                    out,
+                    " {}={}",
+                    key.if_supports_color(Stdout, |t| t
+                        .truecolor(150, 150, 150)
+                        .bold()
+                        .to_string()),
+                    val_display
+                );
+            } else {
+                let _ = write!(
+                    out,
+                    "\n{}: {}",
+                    format!("{key:>key_width$}").if_supports_color(Stdout, |t| t
+                        .truecolor(150, 150, 150)
+                        .bold()
+                        .to_string()),
+                    val_display
+                );
+            }
+        }
     }
 
-    // Error field (red, with multiline support for stacktraces)
+    // Error field
     if let Some(ref error) = record.error {
-        format_error_field(error, key_width, out);
+        if config.single_line {
+            let first_line = error.lines().next().unwrap_or(error);
+            let _ = write!(
+                out,
+                " {}={}",
+                "error".if_supports_color(Stdout, |t| t.red().bold().to_string()),
+                first_line.if_supports_color(Stdout, |t| t.red().to_string())
+            );
+        } else {
+            format_error_field(error, key_width, out);
+        }
     }
 }
 

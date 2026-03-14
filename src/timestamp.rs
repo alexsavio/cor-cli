@@ -22,7 +22,12 @@ pub struct Timestamp {
 impl Timestamp {
     /// Format the timestamp for display using the given strftime-compatible format string.
     pub fn format_with(&self, format: &str) -> String {
-        let zdt = self.value.to_zoned(jiff::tz::TimeZone::UTC);
+        self.format_with_tz(format, &jiff::tz::TimeZone::UTC)
+    }
+
+    /// Format the timestamp using the given format string and timezone.
+    pub fn format_with_tz(&self, format: &str, tz: &jiff::tz::TimeZone) -> String {
+        let zdt = self.value.to_zoned(tz.clone());
         zdt.strftime(format).to_string()
     }
 

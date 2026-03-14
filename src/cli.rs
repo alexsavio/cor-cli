@@ -9,6 +9,7 @@ use clap::{Parser, ValueEnum};
 ///
 /// Reads JSON log lines from stdin, outputs colorized human-readable text
 /// to stdout. Non-JSON lines are passed through unchanged.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Parser)]
 #[command(name = "cor", version, about, long_about = None)]
 pub struct Cli {
@@ -70,11 +71,26 @@ pub struct Cli {
     )]
     pub exclude_fields: Option<Vec<String>>,
 
+    /// Hide all extra fields, showing only timestamp/level/logger/message/caller/error.
+    #[arg(
+        short = 'n',
+        long,
+        conflicts_with = "include_fields",
+        conflicts_with = "exclude_fields"
+    )]
+    pub no_extra: bool,
+
     /// Output filtered lines as JSON instead of colorized text.
     ///
     /// Non-JSON lines are suppressed in this mode.
     #[arg(short = 'j', long)]
     pub json: bool,
+
+    /// Render extra fields inline on the same line as the message.
+    ///
+    /// Format: `key=val key=val` after the message instead of one-per-line.
+    #[arg(short = 'S', long)]
+    pub single_line: bool,
 
     /// Maximum character length for extra field values.
     ///
@@ -89,6 +105,27 @@ pub struct Cli {
     #[arg(short = 'g', long)]
     pub line_gap: Option<usize>,
 
+    /// Timestamp display format (strftime-compatible).
+    ///
+    /// Overrides the format from config file or the default `%Y-%m-%dT%H:%M:%S%.3f`.
+    #[arg(short = 'T', long)]
+    pub timestamp_format: Option<String>,
+
+    /// Minimum width for extra field key alignment (right-justified).
+    #[arg(long)]
+    pub key_min_width: Option<usize>,
+
+    /// Filter lines where any field value matches a regex pattern.
+    #[arg(short = 'G', long)]
+    pub grep: Option<String>,
+
+    /// Timezone for timestamp display.
+    ///
+    /// Use `local` for system timezone, or an IANA name like `Europe/Berlin`.
+    /// Default: UTC.
+    #[arg(short = 'z', long)]
+    pub timezone: Option<String>,
+
     /// Path to configuration file.
     #[arg(long)]
     pub config: Option<std::path::PathBuf>,
@@ -99,6 +136,14 @@ pub struct Cli {
     /// display the `serde_json` error message after the raw line.
     #[arg(short = 'v', long)]
     pub verbose: bool,
+
+    /// Generate shell completions and exit.
+    #[arg(long, value_enum)]
+    pub completions: Option<clap_complete::Shell>,
+
+    /// Input files to process (reads stdin if none given, `-` for explicit stdin).
+    #[arg()]
+    pub files: Vec<std::path::PathBuf>,
 }
 
 /// Color output mode.

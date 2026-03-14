@@ -1,4 +1,6 @@
-use std::io::{self, BufRead, BufWriter, Write};
+use std::fs::File;
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
+use std::path::Path;
 use std::process::ExitCode;
 
 use clap::Parser;
@@ -60,6 +62,13 @@ fn main() -> ExitCode {
 
     let cli = Cli::parse();
 
+    // Handle --completions: generate and exit
+    if let Some(shell) = cli.completions {
+        let mut cmd = <Cli as clap::CommandFactory>::command();
+        clap_complete::generate(shell, &mut cmd, "cor", &mut io::stdout());
+        return ExitCode::SUCCESS;
+    }
+
     let config = match Config::from_cli(&cli) {
         Ok(config) => config,
         Err(e) => {
@@ -74,20 +83,50 @@ fn main() -> ExitCode {
         ColorMode::Auto => {} // owo-colors auto-detects via supports-color
     }
 
-    let stdin = io::stdin();
     let stdout = io::stdout();
     let mut writer = BufWriter::new(stdout.lock());
+    let mut had_error = false;
 
-    let exit = process_lines(stdin.lock().lines(), &config, &mut writer);
-    if let Some(code) = exit {
-        return code;
+    if cli.files.is_empty() {
+        // No files: read from stdin (original behavior)
+        let stdin = io::stdin();
+        let exit = process_lines(stdin.lock().lines(), &config, &mut writer);
+        if let Some(code) = exit {
+            return code;
+        }
+    } else {
+        for path in &cli.files {
+            let exit = if path == Path::new("-") {
+                let stdin = io::stdin();
+                process_lines(stdin.lock().lines(), &config, &mut writer)
+            } else {
+                match File::open(path) {
+                    Ok(file) => {
+                        let reader = BufReader::new(file);
+                        process_lines(reader.lines(), &config, &mut writer)
+                    }
+                    Err(e) => {
+                        eprintln!("cor: {}: {e}", path.display());
+                        had_error = true;
+                        continue;
+                    }
+                }
+            };
+            if let Some(code) = exit {
+                return code;
+            }
+        }
     }
 
     if let Some(code) = check_write_result(writer.flush(), "flush error") {
         return code;
     }
 
-    ExitCode::SUCCESS
+    if had_error {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    }
 }
 
 /// Process all input lines, handling single-line and multi-line JSON reassembly.

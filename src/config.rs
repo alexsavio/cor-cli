@@ -18,6 +18,7 @@ use crate::level::{Level, color_name_to_style};
 ///
 /// Use [`Config::from_cli`] to build from parsed CLI arguments, or
 /// [`Config::default`] for built-in defaults (useful in tests and benchmarks).
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone)]
 pub struct Config {
     /// Color output mode (auto/always/never).
@@ -54,6 +55,14 @@ pub struct Config {
     pub key_min_width: usize,
     /// Custom colors for log level badges (maps level → color name).
     pub level_colors: Option<HashMap<Level, String>>,
+    /// Hide all extra fields, showing only timestamp/level/logger/message/caller/error.
+    pub no_extra: bool,
+    /// Render extra fields inline on the same line as the message.
+    pub single_line: bool,
+    /// Timezone for timestamp display (default: UTC).
+    pub timezone: jiff::tz::TimeZone,
+    /// Regex pattern to filter lines by field values.
+    pub grep_pattern: Option<regex::Regex>,
     /// Show parse errors for lines that look like JSON but fail to parse.
     pub verbose: bool,
 }
@@ -78,6 +87,10 @@ impl Default for Config {
             line_gap: 1,
             key_min_width: 25,
             level_colors: None,
+            no_extra: false,
+            single_line: false,
+            timezone: jiff::tz::TimeZone::UTC,
+            grep_pattern: None,
             verbose: false,
         }
     }
@@ -139,12 +152,31 @@ impl Config {
         }
 
         config.json_output = cli.json;
+        config.no_extra = cli.no_extra;
+        if cli.single_line {
+            config.single_line = true;
+        }
         config.verbose = cli.verbose;
         if let Some(max_len) = cli.max_field_length {
             config.max_field_length = max_len;
         }
         if let Some(gap) = cli.line_gap {
             config.line_gap = gap;
+        }
+        if let Some(ref fmt) = cli.timestamp_format {
+            config.timestamp_format.clone_from(fmt);
+        }
+        if let Some(width) = cli.key_min_width {
+            config.key_min_width = width;
+        }
+        if let Some(ref tz_str) = cli.timezone {
+            config.timezone = parse_timezone(tz_str)?;
+        }
+        if let Some(ref pattern) = cli.grep {
+            config.grep_pattern = Some(
+                regex::Regex::new(pattern)
+                    .map_err(|e| CorError::Config(format!("invalid grep pattern: {e}")))?,
+            );
         }
 
         Ok(config)
@@ -192,6 +224,16 @@ impl Config {
 
         if let Some(width) = file.key_min_width {
             self.key_min_width = width;
+        }
+
+        if let Some(single_line) = file.single_line {
+            self.single_line = single_line;
+        }
+
+        if let Some(ref tz_str) = file.timezone
+            && let Ok(tz) = parse_timezone(tz_str)
+        {
+            self.timezone = tz;
         }
 
         if let Some(keys) = file.keys {
@@ -244,6 +286,18 @@ impl Config {
     }
 }
 
+/// Parse a timezone string into a [`jiff::tz::TimeZone`].
+///
+/// Supports `"local"` for the system timezone, `"UTC"` for UTC, and IANA names.
+fn parse_timezone(s: &str) -> Result<jiff::tz::TimeZone, CorError> {
+    match s.to_lowercase().as_str() {
+        "local" => Ok(jiff::tz::TimeZone::system()),
+        "utc" => Ok(jiff::tz::TimeZone::UTC),
+        _ => jiff::tz::TimeZone::get(s)
+            .map_err(|e| CorError::Config(format!("invalid timezone '{s}': {e}"))),
+    }
+}
+
 /// Config file structure (TOML deserialization).
 #[derive(Debug, Deserialize)]
 struct FileConfig {
@@ -253,6 +307,8 @@ struct FileConfig {
     max_field_length: Option<usize>,
     line_gap: Option<usize>,
     key_min_width: Option<usize>,
+    single_line: Option<bool>,
+    timezone: Option<String>,
     keys: Option<KeysConfig>,
     levels: Option<HashMap<String, String>>,
     colors: Option<HashMap<String, String>>,
@@ -334,6 +390,8 @@ mod tests {
             max_field_length: Some(80),
             line_gap: Some(3),
             key_min_width: Some(30),
+            single_line: None,
+            timezone: None,
             keys: Some(KeysConfig {
                 message: Some("event".to_string()),
                 level: None,
@@ -411,6 +469,8 @@ mod tests {
             max_field_length: None,
             line_gap: None,
             key_min_width: None,
+            single_line: None,
+            timezone: None,
             keys: None,
             levels: None,
             colors: None,
@@ -435,6 +495,8 @@ mod tests {
             max_field_length: None,
             line_gap: None,
             key_min_width: None,
+            single_line: None,
+            timezone: None,
             keys: None,
             levels: Some({
                 let mut m = HashMap::new();
@@ -464,6 +526,8 @@ mod tests {
             max_field_length: None,
             line_gap: None,
             key_min_width: None,
+            single_line: None,
+            timezone: None,
             keys: None,
             levels: Some({
                 let mut m = HashMap::new();
@@ -489,6 +553,8 @@ mod tests {
             max_field_length: None,
             line_gap: None,
             key_min_width: None,
+            single_line: None,
+            timezone: None,
             keys: None,
             levels: None,
             colors: Some({
@@ -514,6 +580,8 @@ mod tests {
             max_field_length: None,
             line_gap: None,
             key_min_width: None,
+            single_line: None,
+            timezone: None,
             keys: None,
             levels: None,
             colors: Some({
@@ -542,6 +610,8 @@ mod tests {
             max_field_length: None,
             line_gap: None,
             key_min_width: None,
+            single_line: None,
+            timezone: None,
             keys: None,
             levels: None,
             colors: Some({
@@ -569,6 +639,8 @@ mod tests {
             max_field_length: None,
             line_gap: None,
             key_min_width: None,
+            single_line: None,
+            timezone: None,
             keys: None,
             levels: None,
             colors: Some({
@@ -594,6 +666,8 @@ mod tests {
             max_field_length: None,
             line_gap: None,
             key_min_width: None,
+            single_line: None,
+            timezone: None,
             keys: Some(KeysConfig {
                 message: None,
                 level: None,
@@ -621,6 +695,8 @@ mod tests {
             max_field_length: None,
             line_gap: None,
             key_min_width: None,
+            single_line: None,
+            timezone: None,
             keys: None,
             levels: None,
             colors: Some({
@@ -666,6 +742,8 @@ mod tests {
             max_field_length: None,
             line_gap: None,
             key_min_width: None,
+            single_line: None,
+            timezone: None,
             keys: None,
             levels: None,
             colors: None,

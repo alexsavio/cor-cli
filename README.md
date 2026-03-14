@@ -3,10 +3,10 @@
 [![Crates.io](https://img.shields.io/crates/v/cor.svg)](https://crates.io/crates/cor)
 [![CI](https://github.com/alexsavio/cor-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/alexsavio/cor-cli/actions/workflows/ci.yml)
 
-Colorize JSON-structured log lines from stdin.
+Colorize JSON-structured log lines from stdin or files.
 
-`cor` reads newline-delimited JSON log entries from stdin and prints colorized,
-human-readable output to stdout. Non-JSON lines pass through unchanged.
+`cor` reads newline-delimited JSON log entries from stdin (or files) and prints
+colorized, human-readable output to stdout. Non-JSON lines pass through unchanged.
 
 ```text
 $ echo '{"level":"info","ts":"2026-01-15T10:30:01.456Z","msg":"request completed","logger":"http.server","caller":"server/router.go:118","method":"GET","status":200}' | cor
@@ -74,6 +74,12 @@ $ echo '{"level":"info","ts":"2026-01-15T10:30:01.456Z","msg":"request completed
 - **JSON passthrough** — `--json` outputs filtered JSON for piping
 - **Truncation** — long values truncated at 120 chars (configurable)
 - **Line gap** — configurable blank lines between entries (default: 1)
+- **Grep filter** — `--grep <PATTERN>` regex filter across all field values
+- **Single-line mode** — `--single-line` renders `key=val` pairs inline
+- **No-extra mode** — `--no-extra` hides all extra fields for clean output
+- **Timezone** — `--timezone local` or `--timezone Europe/Berlin`
+- **File arguments** — `cor app.log` reads files directly (stdin if no args)
+- **Shell completions** — `--completions bash|zsh|fish|elvish|powershell`
 - **Config file** — `~/.config/cor/config.toml` for persistent settings
 - **NO_COLOR** — respects [no-color.org](https://no-color.org) convention
 - **Fast** — ~400K lines/sec, O(line-length) memory, streaming I/O
@@ -112,8 +118,14 @@ bodies, stack traces) where SIMD's throughput advantage outweighs the copy overh
 # Pipe any JSON log stream
 my-app | cor
 
+# Read from files directly
+cor app.log worker.log
+
 # Filter by level
 kubectl logs my-pod | cor --level warn
+
+# Grep for a pattern across all fields
+my-app | cor --grep "timeout|refused"
 
 # Custom keys
 my-app | cor --message-key event --level-key severity
@@ -127,8 +139,20 @@ my-app | cor --include-fields=host,port,status
 # Hide noisy fields
 my-app | cor --exclude-fields=pid,hostname
 
+# Hide all extra fields
+my-app | cor --no-extra
+
+# Compact single-line output
+my-app | cor --single-line
+
 # Output filtered JSON (for piping)
 my-app | cor --level error --json | jq .
+
+# Custom timestamp format
+my-app | cor --timestamp-format '%H:%M:%S'
+
+# Display timestamps in local timezone
+my-app | cor --timezone local
 
 # Disable truncation
 my-app | cor --max-field-length=0
@@ -136,11 +160,11 @@ my-app | cor --max-field-length=0
 # Compact output (no blank lines between entries)
 my-app | cor --line-gap=0
 
-# Extra spacing between entries
-my-app | cor --line-gap=3
-
 # Force colors in pipes
 my-app | cor --color=always | less -R
+
+# Generate shell completions
+cor --completions zsh > _cor
 ```
 
 ## Output format
@@ -152,13 +176,13 @@ YYYY-MM-DDTHH:MM:SS.mmm  LEVEL: logger message (caller)
                                     error: error message or stacktrace
 ```
 
-- **Timestamp** — bold `YYYY-MM-DDTHH:MM:SS.mmm` in UTC
+- **Timestamp** — bold `YYYY-MM-DDTHH:MM:SS.mmm` in UTC (configurable via `--timezone` and `--timestamp-format`)
 - **Level** — colored and bold, right-justified in a 5-char field
   - <span style="color:cyan">TRACE</span> · <span style="color:blue">DEBUG</span> · <span style="color:green"> INFO</span> · <span style="color:yellow"> WARN</span> · <span style="color:red">ERROR</span> · <span style="color:magenta">FATAL</span>
 - **Logger** — dimmed, after level badge (e.g., `http.server`)
 - **Message** — plain text
 - **Caller** — dimmed, in parentheses after message (e.g., `(server/router.go:118)`)
-- **Extra fields** — one per line, key right-justified to 25 chars, bold gray
+- **Extra fields** — one per line, key right-justified to 25 chars, bold gray (or inline `key=val` with `--single-line`)
 - **Error** — red, after extra fields; multiline stacktraces are preserved and indented
 
 ## Log levels
@@ -240,6 +264,13 @@ line_gap = 1
 # Minimum width for field key alignment (default: 25)
 key_min_width = 25
 
+# Render extra fields inline as key=val (default: false)
+# single_line = true
+
+# Timezone for timestamp display: "UTC" (default), "local", or IANA name
+# timezone = "local"
+# timezone = "Europe/Berlin"
+
 # Examples of custom timestamp formats:
 # timestamp_format = "%H:%M:%S%.3f"    # time only with milliseconds
 # timestamp_format = "%H:%M:%S"        # time only, no milliseconds
@@ -285,11 +316,15 @@ fatal = "magenta"
 ## CLI reference
 
 ```text
-cor [OPTIONS]
+cor [OPTIONS] [FILES]...
+
+Arguments:
+  [FILES]...                       Input files (reads stdin if none given, `-` for explicit stdin)
 
 Options:
   -c, --color <COLOR>              Color mode [default: auto] [values: auto, always, never]
   -l, --level <LEVEL>              Minimum severity level [values: trace, debug, info, warn, error, fatal]
+  -G, --grep <PATTERN>             Filter lines by regex across all field values
   -m, --message-key <KEY>          Override message field key
       --level-key <KEY>            Override level field key
   -t, --timestamp-key <KEY>        Override timestamp field key
@@ -298,11 +333,17 @@ Options:
       --error-key <KEY>            Override error/stacktrace field key
   -i, --include-fields <FIELDS>    Only show these fields (comma-separated)
   -e, --exclude-fields <FIELDS>    Hide these fields (comma-separated)
+  -n, --no-extra                   Hide all extra fields
+  -S, --single-line                Render extra fields inline as key=val
   -j, --json                       Output raw JSON instead of colorized text
+  -T, --timestamp-format <FMT>    Timestamp display format (strftime)
+  -z, --timezone <TZ>             Timezone: UTC (default), local, or IANA name
   -M, --max-field-length <N>       Max field value length [default: 120]
   -g, --line-gap <N>               Blank lines between entries [default: 1]
+      --key-min-width <N>          Minimum key alignment width [default: 25]
       --config <PATH>              Path to config file
   -v, --verbose                    Show parse errors for malformed JSON lines
+      --completions <SHELL>        Generate shell completions [values: bash, zsh, fish, elvish, powershell]
   -h, --help                       Print help
   -V, --version                    Print version
 ```
