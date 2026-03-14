@@ -13,6 +13,9 @@ on:
 permissions:
   contents: write
 
+env:
+  RUMDL_VERSION: "0.1.42"
+
 jobs:
   changelog:
     name: Update Changelog
@@ -29,8 +32,13 @@ jobs:
         with:
           tool: git-cliff@2.12.0
 
+      - name: Cache rumdl
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/rumdl
+          key: rumdl-${{ env.RUMDL_VERSION }}
       - name: Install rumdl
-        run: cargo install rumdl@0.1.42
+        run: command -v rumdl || cargo install rumdl@${{ env.RUMDL_VERSION }}
 
       - name: Format changelog
         run: rumdl fmt CHANGELOG.md
