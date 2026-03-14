@@ -1,13 +1,6 @@
 //! Integration tests for mixed JSON + non-JSON input.
 
-use assert_cmd::Command;
-
-#[allow(deprecated)]
-fn cor() -> Command {
-    let mut cmd = Command::cargo_bin("cor").unwrap();
-    cmd.env("XDG_CONFIG_HOME", "/tmp/cor-test-no-config");
-    cmd
-}
+use super::cor;
 
 #[test]
 fn json_and_plain_text_mixed() {

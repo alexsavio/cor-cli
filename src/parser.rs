@@ -953,4 +953,267 @@ mod tests {
             _ => panic!("Expected Json variant"),
         }
     }
+
+    // ── Custom logger/caller/error key tests ────────────────────────
+
+    #[test]
+    fn test_custom_logger_key() {
+        let config = Config {
+            logger_key: Some("service".to_string()),
+            ..Config::default()
+        };
+        let line = r#"{"level":"info","msg":"hi","service":"payments"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.logger.as_deref(), Some("payments"));
+                assert!(
+                    !record.extra.contains_key("service"),
+                    "custom logger key should be consumed from extra"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_custom_logger_key_leaves_alias_in_extra() {
+        let config = Config {
+            logger_key: Some("service".to_string()),
+            ..Config::default()
+        };
+        let line = r#"{"level":"info","msg":"hi","service":"payments","logger":"default"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(
+                    record.logger.as_deref(),
+                    Some("payments"),
+                    "custom key should be used"
+                );
+                assert_eq!(
+                    record.extra.get("logger"),
+                    Some(&json!("default")),
+                    "alias-named field should remain in extra when custom key overrides"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_custom_caller_key() {
+        let config = Config {
+            caller_key: Some("loc".to_string()),
+            ..Config::default()
+        };
+        let line = r#"{"level":"info","msg":"hi","loc":"handler.go:42"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.caller.as_deref(), Some("handler.go:42"));
+                assert!(
+                    !record.extra.contains_key("loc"),
+                    "custom caller key should be consumed from extra"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_custom_caller_key_leaves_alias_in_extra() {
+        let config = Config {
+            caller_key: Some("loc".to_string()),
+            ..Config::default()
+        };
+        let line = r#"{"level":"info","msg":"hi","loc":"handler.go:42","caller":"main.go:10"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.caller.as_deref(), Some("handler.go:42"));
+                assert_eq!(
+                    record.extra.get("caller"),
+                    Some(&json!("main.go:10")),
+                    "alias-named field should remain in extra when custom key overrides"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_custom_error_key() {
+        let config = Config {
+            error_key: Some("err_msg".to_string()),
+            ..Config::default()
+        };
+        let line = r#"{"level":"error","msg":"fail","err_msg":"connection timeout"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.error.as_deref(), Some("connection timeout"));
+                assert!(
+                    !record.extra.contains_key("err_msg"),
+                    "custom error key should be consumed from extra"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_custom_error_key_leaves_alias_in_extra() {
+        let config = Config {
+            error_key: Some("err_msg".to_string()),
+            ..Config::default()
+        };
+        let line = r#"{"level":"error","msg":"fail","err_msg":"timeout","error":"original error"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.error.as_deref(), Some("timeout"));
+                assert_eq!(
+                    record.extra.get("error"),
+                    Some(&json!("original error")),
+                    "alias-named field should remain in extra when custom key overrides"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    // ── Logger/caller/error alias extraction ────────────────────────
+
+    #[test]
+    fn test_logger_alias_extraction() {
+        let config = default_config();
+        let line = r#"{"level":"info","msg":"hi","logger":"payments.processor"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.logger.as_deref(), Some("payments.processor"));
+                assert!(
+                    !record.extra.contains_key("logger"),
+                    "logger should be extracted from extra"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_caller_alias_extraction() {
+        let config = default_config();
+        let line = r#"{"level":"info","msg":"hi","caller":"server/handler.go:42"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.caller.as_deref(), Some("server/handler.go:42"));
+                assert!(
+                    !record.extra.contains_key("caller"),
+                    "caller should be extracted from extra"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_error_alias_extraction() {
+        let config = default_config();
+        let line = r#"{"level":"error","msg":"fail","error":"something broke"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.error.as_deref(), Some("something broke"));
+                assert!(
+                    !record.extra.contains_key("error"),
+                    "error should be extracted from extra"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_exception_alias_extraction() {
+        let config = default_config();
+        let line = r#"{"level":"error","msg":"fail","exception":"Traceback: ..."}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(record.error.as_deref(), Some("Traceback: ..."));
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    // ── Concurrent alias collisions ─────────────────────────────────
+
+    #[test]
+    fn test_multiple_message_aliases_first_wins() {
+        // Both "msg" and "message" are message aliases. "msg" is first in the alias table.
+        let config = default_config();
+        let line = r#"{"level":"info","msg":"from msg","message":"from message"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(
+                    record.message.as_deref(),
+                    Some("from msg"),
+                    "first alias in table should win"
+                );
+                // The other alias should remain in extra
+                assert_eq!(
+                    record.extra.get("message"),
+                    Some(&json!("from message")),
+                    "second alias should remain in extra"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    #[test]
+    fn test_multiple_level_aliases_first_wins() {
+        let config = default_config();
+        let line = r#"{"level":"info","severity":"error","msg":"test"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert_eq!(
+                    record.level,
+                    Some(Level::Info),
+                    "'level' is first in the alias table, should win over 'severity'"
+                );
+                assert_eq!(
+                    record.extra.get("severity"),
+                    Some(&json!("error")),
+                    "'severity' should remain in extra"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
+
+    // ── ISO 8601 without fractional seconds ─────────────────────────
+
+    #[test]
+    fn test_iso8601_without_fractional_seconds() {
+        let config = default_config();
+        let line = r#"{"level":"info","msg":"hi","time":"2026-01-15T10:30:00Z"}"#;
+        let result = parse_line(line, &config);
+        match result {
+            LineKind::Json(record) => {
+                assert!(record.timestamp.is_some(), "plain ISO 8601 should parse");
+                let ts_str = record.timestamp.unwrap().format_display();
+                assert!(
+                    ts_str.contains("10:30:00"),
+                    "timestamp should contain time: {ts_str}"
+                );
+            }
+            _ => panic!("Expected Json variant"),
+        }
+    }
 }

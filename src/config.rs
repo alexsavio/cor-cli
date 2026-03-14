@@ -91,12 +91,18 @@ impl Config {
         // Start with defaults
         let mut config = Self::default();
 
-        // Load config file if it exists
+        // Load config file: explicit --config must exist, default path is optional.
+        let explicit_config = cli.config.is_some();
         let config_path = cli.config.clone().unwrap_or_else(Self::default_config_path);
 
         if config_path.exists() {
             let file_config = FileConfig::load(&config_path)?;
             config.apply_file_config(file_config);
+        } else if explicit_config {
+            return Err(CorError::Config(format!(
+                "config file not found: {}",
+                config_path.display()
+            )));
         }
 
         // CLI overrides (CLI takes precedence over config file)
@@ -275,6 +281,7 @@ impl FileConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::Parser;
 
     #[test]
     fn test_default_config() {
@@ -363,6 +370,18 @@ mod tests {
         assert!(
             msg.contains("cannot read config file"),
             "expected config error, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_from_cli_explicit_config_nonexistent_fails() {
+        let cli = Cli::parse_from(["cor", "--config=/tmp/cor-test-nonexistent-path/config.toml"]);
+        let result = Config::from_cli(&cli);
+        assert!(result.is_err(), "explicit nonexistent config should fail");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("config file not found"),
+            "expected 'config file not found', got: {msg}"
         );
     }
 
@@ -563,6 +582,61 @@ mod tests {
         let colors = config.level_colors.unwrap();
         assert_eq!(colors.len(), 1);
         assert_eq!(colors.get(&Level::Warn), Some(&"yellow".to_string()));
+    }
+
+    #[test]
+    fn test_apply_file_config_logger_caller_error_keys() {
+        let mut config = Config::default();
+        let file_config = FileConfig {
+            color: None,
+            level: None,
+            timestamp_format: None,
+            max_field_length: None,
+            line_gap: None,
+            key_min_width: None,
+            keys: Some(KeysConfig {
+                message: None,
+                level: None,
+                timestamp: None,
+                logger: Some("service".to_string()),
+                caller: Some("loc".to_string()),
+                error: Some("err_msg".to_string()),
+            }),
+            levels: None,
+            colors: None,
+        };
+        config.apply_file_config(file_config);
+        assert_eq!(config.logger_key.as_deref(), Some("service"));
+        assert_eq!(config.caller_key.as_deref(), Some("loc"));
+        assert_eq!(config.error_key.as_deref(), Some("err_msg"));
+    }
+
+    #[test]
+    fn test_apply_file_config_purple_color_alias() {
+        let mut config = Config::default();
+        let file_config = FileConfig {
+            color: None,
+            level: None,
+            timestamp_format: None,
+            max_field_length: None,
+            line_gap: None,
+            key_min_width: None,
+            keys: None,
+            levels: None,
+            colors: Some({
+                let mut m = HashMap::new();
+                m.insert("fatal".to_string(), "purple".to_string());
+                m
+            }),
+        };
+        config.apply_file_config(file_config);
+        let colors = config.level_colors.unwrap();
+        // "purple" is an alias for "magenta" and should be accepted
+        assert_eq!(
+            colors.get(&Level::Fatal),
+            Some(&"purple".to_string()),
+            "'purple' should be a valid color alias"
+        );
     }
 
     #[test]

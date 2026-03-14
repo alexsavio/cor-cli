@@ -1,13 +1,6 @@
 //! Integration tests for level filtering (US2).
 
-use assert_cmd::Command;
-
-#[allow(deprecated)]
-fn cor() -> Command {
-    let mut cmd = Command::cargo_bin("cor").unwrap();
-    cmd.env("XDG_CONFIG_HOME", "/tmp/cor-test-no-config");
-    cmd
-}
+use super::cor;
 
 #[test]
 fn level_warn_shows_warn_error_fatal() {

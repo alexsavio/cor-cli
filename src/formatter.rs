@@ -711,4 +711,117 @@ mod tests {
             "JSON record without level should pass through when filtering is active"
         );
     }
+
+    // ── format_error_field tests ────────────────────────────────────
+
+    #[test]
+    fn test_format_error_field_single_line() {
+        disable_color();
+        let mut out = String::new();
+        format_error_field("connection timeout", 25, &mut out);
+        assert!(
+            out.contains("error"),
+            "error label should appear.\nGot: {out}"
+        );
+        assert!(
+            out.contains("connection timeout"),
+            "error value should appear.\nGot: {out}"
+        );
+        // format_error_field prepends a newline for alignment under extra fields
+        assert!(
+            out.starts_with('\n'),
+            "error field should start with newline.\nGot: {out}"
+        );
+        // Should contain exactly one newline (the leading one) — no continuation lines
+        assert_eq!(
+            out.matches('\n').count(),
+            1,
+            "single-line error should have only the leading newline.\nGot: {out}"
+        );
+    }
+
+    #[test]
+    fn test_format_error_field_multiline() {
+        disable_color();
+        let error = "Traceback:\n  File \"app.py\", line 72\n    raise Error";
+        let mut out = String::new();
+        format_error_field(error, 25, &mut out);
+        assert!(
+            out.contains("error"),
+            "error label should appear.\nGot: {out}"
+        );
+        assert!(
+            out.contains("Traceback:"),
+            "first line of error should appear.\nGot: {out}"
+        );
+        assert!(
+            out.contains("File \"app.py\""),
+            "continuation lines should appear.\nGot: {out}"
+        );
+        assert!(
+            out.contains("raise Error"),
+            "last line of error should appear.\nGot: {out}"
+        );
+        // Continuation lines should be indented (key_width + ": " = 27 spaces)
+        let indent = " ".repeat(27);
+        assert!(
+            out.contains(&format!("{indent}File")),
+            "continuation lines should be indented.\nGot: {out}"
+        );
+    }
+
+    // ── Logger and caller rendering ─────────────────────────────────
+
+    #[test]
+    fn test_format_record_with_logger() {
+        disable_color();
+        let config = Config::default();
+        let mut out = String::new();
+        let line = r#"{"level":"info","msg":"hello","logger":"payments.processor"}"#;
+        format_line(line, &config, &mut out);
+        assert!(
+            out.contains("payments.processor"),
+            "logger should appear in output.\nGot: {out}"
+        );
+        // Logger should NOT appear as a key-value extra field
+        assert!(
+            !out.contains("logger:"),
+            "logger should not appear as extra field.\nGot: {out}"
+        );
+    }
+
+    #[test]
+    fn test_format_record_with_caller() {
+        disable_color();
+        let config = Config::default();
+        let mut out = String::new();
+        let line = r#"{"level":"info","msg":"hello","caller":"server/handler.go:42"}"#;
+        format_line(line, &config, &mut out);
+        assert!(
+            out.contains("(server/handler.go:42)"),
+            "caller should appear in parentheses.\nGot: {out}"
+        );
+        assert!(
+            !out.contains("caller:"),
+            "caller should not appear as extra field.\nGot: {out}"
+        );
+    }
+
+    #[test]
+    fn test_format_record_with_error() {
+        disable_color();
+        let config = Config::default();
+        let mut out = String::new();
+        let line = r#"{"level":"error","msg":"fail","error":"connection refused"}"#;
+        format_line(line, &config, &mut out);
+        assert!(
+            out.contains("connection refused"),
+            "error value should appear.\nGot: {out}"
+        );
+        // Error field appears after extra fields with "error:" label
+        assert!(
+            out.contains("error:"),
+            "error label should appear.\nGot: {out}"
+        );
+    }
 }

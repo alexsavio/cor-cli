@@ -1,15 +1,9 @@
 //! Integration tests for User Story 3 - custom keys, field filtering, config file.
 
-use assert_cmd::Command;
 use predicates::prelude::*;
 use std::io::Write;
 
-#[allow(deprecated)]
-fn cor() -> Command {
-    let mut cmd = Command::cargo_bin("cor").unwrap();
-    cmd.env("XDG_CONFIG_HOME", "/tmp/cor-test-no-config");
-    cmd
-}
+use super::cor;
 
 #[test]
 fn custom_message_key() {

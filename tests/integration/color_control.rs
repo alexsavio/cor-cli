@@ -1,13 +1,6 @@
 //! Integration tests for color control: `NO_COLOR`, `FORCE_COLOR`, --color flag, `TERM`.
 
-use assert_cmd::Command;
-
-#[allow(deprecated)]
-fn cor() -> Command {
-    let mut cmd = Command::cargo_bin("cor").unwrap();
-    cmd.env("XDG_CONFIG_HOME", "/tmp/cor-test-no-config");
-    cmd
-}
+use super::cor;
 
 #[test]
 fn color_never_disables_ansi() {

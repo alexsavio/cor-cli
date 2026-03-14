@@ -1,14 +1,8 @@
 //! Integration tests for embedded JSON detection.
 
-use assert_cmd::Command;
 use predicates::prelude::*;
 
-#[allow(deprecated)]
-fn cor() -> Command {
-    let mut cmd = Command::cargo_bin("cor").unwrap();
-    cmd.env("XDG_CONFIG_HOME", "/tmp/cor-test-no-config");
-    cmd
-}
+use super::cor;
 
 #[test]
 fn embedded_json_colorized() {
