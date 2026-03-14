@@ -32,7 +32,7 @@ jobs:
         run: cargo fmt --check
 
       - name: Install rumdl
-        run: cargo install rumdl
+        run: cargo install rumdl@0.1.42
 
       - name: Check Markdown
         run: rumdl check *.md
