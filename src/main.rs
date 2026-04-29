@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, BufWriter, Write};
+use std::io::{self, BufRead, BufReader, LineWriter, Write};
 use std::path::Path;
 use std::process::ExitCode;
 
@@ -36,23 +36,20 @@ fn check_write_result(result: io::Result<()>, context: &str) -> Option<ExitCode>
 }
 
 /// Write a formatted line with line gap, returning early exit code on error.
+///
+/// Batches the entry and its trailing blank lines into a single `write!`
+/// call so `LineWriter` only flushes once per entry (on the final newline)
+/// rather than `1 + line_gap` times. Keeps streaming responsive without
+/// paying per-gap syscalls in batch mode.
 #[inline]
 fn write_entry(
-    writer: &mut BufWriter<io::StdoutLock<'_>>,
+    writer: &mut LineWriter<io::StdoutLock<'_>>,
     line_buf: &str,
     line_gap: usize,
 ) -> Option<ExitCode> {
-    if let exit @ Some(_) = check_write_result(writeln!(writer, "{line_buf}"), "write error") {
-        return exit;
-    }
-
-    for _ in 0..line_gap {
-        if let exit @ Some(_) = check_write_result(writeln!(writer), "write error") {
-            return exit;
-        }
-    }
-
-    None
+    // One '\n' to terminate the entry + `line_gap` blank-line newlines.
+    let trailing = "\n".repeat(1 + line_gap);
+    check_write_result(write!(writer, "{line_buf}{trailing}"), "write error")
 }
 
 fn main() -> ExitCode {
@@ -84,7 +81,15 @@ fn main() -> ExitCode {
     }
 
     let stdout = io::stdout();
-    let mut writer = BufWriter::new(stdout.lock());
+    // LineWriter flushes on every newline so streaming inputs (e.g.
+    // `kubectl logs -f`) print immediately instead of waiting for EOF
+    // or for a block buffer to fill. See issue #3.
+    //
+    // Use an 8 KiB capacity to match the previous `BufWriter::new` default
+    // so long formatted lines (many fields, large values) still get
+    // coalesced into a single write before the trailing newline triggers
+    // the flush. `LineWriter::new` would default to 1 KiB.
+    let mut writer = LineWriter::with_capacity(8 * 1024, stdout.lock());
     let mut had_error = false;
 
     if cli.files.is_empty() {
@@ -136,7 +141,7 @@ fn main() -> ExitCode {
 fn process_lines(
     mut lines_iter: impl Iterator<Item = io::Result<String>>,
     config: &Config,
-    writer: &mut BufWriter<io::StdoutLock<'_>>,
+    writer: &mut LineWriter<io::StdoutLock<'_>>,
 ) -> Option<ExitCode> {
     let mut line_buf = String::new();
 
