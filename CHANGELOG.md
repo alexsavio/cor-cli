@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.PATCH).
 
+## [Unreleased]
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Bump softprops/action-gh-release v2 -> v3 (Node 24)
+
 ## [2026.4.0] - 2026-04-29
 
 ### 🐛 Bug Fixes
