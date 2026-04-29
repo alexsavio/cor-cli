@@ -6,6 +6,7 @@ mod embedded_json;
 mod level_filter;
 mod mixed_input;
 mod multiline;
+mod streaming;
 
 use assert_cmd::Command;
 

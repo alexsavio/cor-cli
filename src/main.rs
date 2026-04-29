@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, BufWriter, Write};
+use std::io::{self, BufRead, BufReader, LineWriter, Write};
 use std::path::Path;
 use std::process::ExitCode;
 
@@ -38,7 +38,7 @@ fn check_write_result(result: io::Result<()>, context: &str) -> Option<ExitCode>
 /// Write a formatted line with line gap, returning early exit code on error.
 #[inline]
 fn write_entry(
-    writer: &mut BufWriter<io::StdoutLock<'_>>,
+    writer: &mut LineWriter<io::StdoutLock<'_>>,
     line_buf: &str,
     line_gap: usize,
 ) -> Option<ExitCode> {
@@ -84,7 +84,10 @@ fn main() -> ExitCode {
     }
 
     let stdout = io::stdout();
-    let mut writer = BufWriter::new(stdout.lock());
+    // LineWriter flushes on every newline so streaming inputs (e.g.
+    // `kubectl logs -f`) print immediately instead of waiting for EOF
+    // or for an 8KiB block buffer to fill. See issue #3.
+    let mut writer = LineWriter::new(stdout.lock());
     let mut had_error = false;
 
     if cli.files.is_empty() {
@@ -136,7 +139,7 @@ fn main() -> ExitCode {
 fn process_lines(
     mut lines_iter: impl Iterator<Item = io::Result<String>>,
     config: &Config,
-    writer: &mut BufWriter<io::StdoutLock<'_>>,
+    writer: &mut LineWriter<io::StdoutLock<'_>>,
 ) -> Option<ExitCode> {
     let mut line_buf = String::new();
 
