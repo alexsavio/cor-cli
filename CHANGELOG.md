@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.PATCH).
 
+## [2026.4.0] - 2026-04-29
+
+### 🐛 Bug Fixes
+
+- *(io)* Use LineWriter so streaming inputs print per-line (#5)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(tests)* Replace deprecated assert_cmd::Command::cargo_bin with macro (#6)
+- Bump deprecated Node 20 actions and add zizmor (#7)
+- *(zizmor)* Disable online audits to avoid 403 on /advisories
+- Bump codecov-action v4 -> v6 (composite, no Node 20)
+- *(changelog)* Generate CHANGELOG.md via git cliff before formatting
+
 ## [2026.3.1] - 2026-03-14
 
 ### 🚀 Features
@@ -20,6 +34,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 - Pin rumdl to 0.1.42 for rustc 1.93 compatibility
 - Pin rumdl to 0.1.42 in changelog workflow
 - Cache rumdl binary and use prebuilt cargo-tarpaulin
+- Release v2026.3.1
 
 ## [2026.3.0] - 2026-03-04
 
