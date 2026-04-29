@@ -10,6 +10,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: {}
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -64,7 +66,7 @@ jobs:
           shared-key: cargo-${{ runner.os }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Install cargo-audit
-        uses: taiki-e/install-action@b651345a718c8f44efa2460560b3dbf29cbd7eb1  # v2
+        uses: taiki-e/install-action@b651345a718c8f44efa2460560b3dbf29cbd7ee1  # v2
         with:
           tool: cargo-audit
       - name: Run cargo audit
@@ -124,7 +126,7 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-tarpaulin
-        uses: taiki-e/install-action@b651345a718c8f44efa2460560b3dbf29cbd7eb1  # v2
+        uses: taiki-e/install-action@b651345a718c8f44efa2460560b3dbf29cbd7ee1  # v2
         with:
           tool: cargo-tarpaulin
 

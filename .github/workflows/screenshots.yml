@@ -4,13 +4,14 @@ on:
   push:
     branches: [main]
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   screenshots:
     name: Generate Screenshots
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
@@ -34,10 +35,13 @@ jobs:
         run: bash scripts/demo-screenshots.sh
 
       - name: Commit updated screenshots
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git diff --quiet assets/demo/ && exit 0
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git add assets/demo/
           git commit -m "chore: update demo screenshots [skip ci]"
           git pull --rebase

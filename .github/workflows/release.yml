@@ -24,8 +24,7 @@ env:
   RUST_BACKTRACE: 1
   BINARY_NAME: cor
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   build:
@@ -79,7 +78,7 @@ jobs:
           EOF
 
       - name: Cache cargo registry
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5  # zizmor: ignore[cache-poisoning]
         with:
           path: |
             ~/.cargo/registry
@@ -116,6 +115,8 @@ jobs:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
@@ -142,11 +143,13 @@ jobs:
 
       - name: Determine version
         id: version
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "version=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+            echo "version=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
           else
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Check if pre-release
@@ -160,7 +163,7 @@ jobs:
           fi
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@b651345a718c8f44efa2460560b3dbf29cbd7eb1  # v2
+        uses: taiki-e/install-action@b651345a718c8f44efa2460560b3dbf29cbd7ee1  # v2
         with:
           tool: git-cliff@2.12.0
 
