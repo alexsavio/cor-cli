@@ -4,35 +4,21 @@
 //! each parsed line must be flushed to stdout as soon as it is produced,
 //! not held in an internal block buffer until EOF. These tests spawn `cor`
 //! with piped stdin/stdout, write a single JSON line, and assert the
-//! formatted output appears before stdin is closed.
+//! formatted output appears *before* stdin is closed.
 
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
-/// Spawn `cor`, write one line to stdin, and read the first line from stdout
-/// within `timeout`. Returns `Some(line)` if a line was produced in time,
-/// `None` if the read timed out (i.e. cor was buffering).
+/// Spawn `cor`, write one line to stdin, and read the first stdout line
+/// within `timeout` while keeping stdin open. Returns `Some(line)` if a
+/// line was produced in time, `None` if the read timed out (i.e. cor was
+/// buffering and never flushed).
 fn first_line_within(input: &str, timeout: Duration) -> Option<String> {
-    let bin = assert_cmd::cargo::cargo_bin!("cor");
-    let mut child = Command::new(bin)
-        .arg("--color=never")
-        .env("XDG_CONFIG_HOME", "/tmp/cor-test-no-config")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("failed to spawn cor");
-
-    {
-        let stdin = child.stdin.as_mut().expect("stdin pipe");
-        stdin.write_all(input.as_bytes()).unwrap();
-        stdin.write_all(b"\n").unwrap();
-        stdin.flush().unwrap();
-    }
-    // Keep stdin open: the goal is to prove output flushes before EOF.
+    let mut child = spawn_cor(&["--color=never"]);
+    write_input(&mut child, input);
 
     let stdout = child.stdout.take().expect("stdout pipe");
     let (tx, rx) = mpsc::channel();
@@ -45,11 +31,72 @@ fn first_line_within(input: &str, timeout: Duration) -> Option<String> {
 
     let result = rx.recv_timeout(timeout).ok();
 
-    // Close stdin and wait for the child to exit so we don't leak processes.
     drop(child.stdin.take());
     let _ = child.wait();
 
     result.filter(|s| !s.is_empty())
+}
+
+/// Spawn `cor`, write `input` + newline, give it `timeout` to flush at
+/// least `min_bytes` of formatted output **while stdin is still open**,
+/// and return whatever was collected. If the buffer is still under
+/// `min_bytes` after `timeout`, returns `None` — the output is being
+/// held back, which is exactly the issue #3 regression we guard against.
+fn output_within(
+    input: &str,
+    args: &[&str],
+    min_bytes: usize,
+    timeout: Duration,
+) -> Option<String> {
+    let mut child = spawn_cor(args);
+    write_input(&mut child, input);
+
+    let mut stdout = child.stdout.take().expect("stdout pipe");
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let mut buf = Vec::new();
+        let mut chunk = [0u8; 4096];
+        loop {
+            match stdout.read(&mut chunk) {
+                Ok(0) | Err(_) => break, // EOF or read error
+                Ok(n) => {
+                    buf.extend_from_slice(&chunk[..n]);
+                    if buf.len() >= min_bytes && tx.send(buf.clone()).is_err() {
+                        break;
+                    }
+                }
+            }
+        }
+        let _ = tx.send(buf);
+    });
+
+    let result = rx.recv_timeout(timeout).ok();
+
+    drop(child.stdin.take());
+    let _ = child.wait();
+
+    result
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+        .filter(|s| s.len() >= min_bytes)
+}
+
+fn spawn_cor(args: &[&str]) -> std::process::Child {
+    let bin = assert_cmd::cargo::cargo_bin!("cor");
+    Command::new(bin)
+        .args(args)
+        .env("XDG_CONFIG_HOME", "/tmp/cor-test-no-config")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to spawn cor")
+}
+
+fn write_input(child: &mut std::process::Child, input: &str) {
+    let stdin = child.stdin.as_mut().expect("stdin pipe");
+    stdin.write_all(input.as_bytes()).unwrap();
+    stdin.write_all(b"\n").unwrap();
+    stdin.flush().unwrap();
 }
 
 #[test]
@@ -67,6 +114,37 @@ fn json_line_flushed_before_stdin_closes() {
     assert!(
         line.contains("streaming"),
         "expected msg in output, got: {line:?}"
+    );
+}
+
+#[test]
+fn long_2kib_line_flushed_before_stdin_closes() {
+    // Lines larger than the default LineWriter capacity (1 KiB) would
+    // bypass the internal buffer; bumping the capacity to 8 KiB keeps
+    // the buffering benefit while still flushing on the trailing
+    // newline. The formatted entry comfortably exceeds 2 KiB because the
+    // `data` value alone is 2 KiB and survives truncation thanks to
+    // `--max-field-length 0`. Output spans multiple lines, so we read
+    // bytes (not just the first line) until at least 2 KiB lands.
+    let big = "x".repeat(2048);
+    let input = format!(r#"{{"level":"info","msg":"big","data":"{big}"}}"#);
+    let output = output_within(
+        &input,
+        &["--color=never", "--max-field-length", "0"],
+        2048,
+        Duration::from_secs(5),
+    )
+    .expect("cor did not flush a >2KiB entry before timing out (issue #3 regression)");
+
+    assert!(
+        output.contains("INFO"),
+        "expected formatted level, got len={}",
+        output.len()
+    );
+    assert!(
+        output.contains(&big),
+        "expected full 2KiB value in output, got len={}",
+        output.len()
     );
 }
 

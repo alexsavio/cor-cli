@@ -85,6 +85,13 @@ shot "$OUT_DIR/07-structured-fields.png" \
   "cat assets/demo.jsonl | cor --level error" \
   "cat assets/demo.jsonl | cor -c always --level error --config $TMPCFG"
 
+# 8 — Streaming use case (kubectl logs -f, tail -f, etc.)
+# cor flushes per line, so streaming producers print as logs arrive
+# instead of waiting for the producer to exit. See issue #3.
+shot "$OUT_DIR/08-streaming.png" \
+  "kubectl logs -f my-pod | cor --level info" \
+  "cat assets/demo.jsonl | cor -c always --level info --config $TMPCFG"
+
 echo ""
 echo "Done! Screenshots saved to $OUT_DIR:"
 ls -1 "$OUT_DIR"

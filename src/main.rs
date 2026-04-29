@@ -86,8 +86,13 @@ fn main() -> ExitCode {
     let stdout = io::stdout();
     // LineWriter flushes on every newline so streaming inputs (e.g.
     // `kubectl logs -f`) print immediately instead of waiting for EOF
-    // or for an 8KiB block buffer to fill. See issue #3.
-    let mut writer = LineWriter::new(stdout.lock());
+    // or for a block buffer to fill. See issue #3.
+    //
+    // Use an 8 KiB capacity to match the previous `BufWriter::new` default
+    // so long formatted lines (many fields, large values) still get
+    // coalesced into a single write before the trailing newline triggers
+    // the flush. `LineWriter::new` would default to 1 KiB.
+    let mut writer = LineWriter::with_capacity(8 * 1024, stdout.lock());
     let mut had_error = false;
 
     if cli.files.is_empty() {
