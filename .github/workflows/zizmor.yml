@@ -32,3 +32,4 @@ jobs:
         with:
           advanced-security: false
           min-severity: low
+          online-audits: false
