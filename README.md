@@ -2,6 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/cor.svg)](https://crates.io/crates/cor)
 [![CI](https://github.com/alexsavio/cor-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/alexsavio/cor-cli/actions/workflows/ci.yml)
+[![zizmor](https://github.com/alexsavio/cor-cli/actions/workflows/zizmor.yml/badge.svg)](https://github.com/alexsavio/cor-cli/actions/workflows/zizmor.yml)
 
 Colorize JSON-structured log lines from stdin or files.
 
