@@ -36,23 +36,20 @@ fn check_write_result(result: io::Result<()>, context: &str) -> Option<ExitCode>
 }
 
 /// Write a formatted line with line gap, returning early exit code on error.
+///
+/// Batches the entry and its trailing blank lines into a single `write!`
+/// call so `LineWriter` only flushes once per entry (on the final newline)
+/// rather than `1 + line_gap` times. Keeps streaming responsive without
+/// paying per-gap syscalls in batch mode.
 #[inline]
 fn write_entry(
     writer: &mut LineWriter<io::StdoutLock<'_>>,
     line_buf: &str,
     line_gap: usize,
 ) -> Option<ExitCode> {
-    if let exit @ Some(_) = check_write_result(writeln!(writer, "{line_buf}"), "write error") {
-        return exit;
-    }
-
-    for _ in 0..line_gap {
-        if let exit @ Some(_) = check_write_result(writeln!(writer), "write error") {
-            return exit;
-        }
-    }
-
-    None
+    // One '\n' to terminate the entry + `line_gap` blank-line newlines.
+    let trailing = "\n".repeat(1 + line_gap);
+    check_write_result(write!(writer, "{line_buf}{trailing}"), "write error")
 }
 
 fn main() -> ExitCode {

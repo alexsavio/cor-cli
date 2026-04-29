@@ -94,9 +94,13 @@ fn spawn_cor(args: &[&str]) -> std::process::Child {
 
 fn write_input(child: &mut std::process::Child, input: &str) {
     let stdin = child.stdin.as_mut().expect("stdin pipe");
-    stdin.write_all(input.as_bytes()).unwrap();
-    stdin.write_all(b"\n").unwrap();
-    stdin.flush().unwrap();
+    stdin
+        .write_all(input.as_bytes())
+        .expect("write input to cor stdin");
+    stdin
+        .write_all(b"\n")
+        .expect("write trailing newline to cor stdin");
+    stdin.flush().expect("flush cor stdin");
 }
 
 #[test]
@@ -119,13 +123,15 @@ fn json_line_flushed_before_stdin_closes() {
 
 #[test]
 fn long_2kib_line_flushed_before_stdin_closes() {
-    // Lines larger than the default LineWriter capacity (1 KiB) would
-    // bypass the internal buffer; bumping the capacity to 8 KiB keeps
-    // the buffering benefit while still flushing on the trailing
-    // newline. The formatted entry comfortably exceeds 2 KiB because the
-    // `data` value alone is 2 KiB and survives truncation thanks to
-    // `--max-field-length 0`. Output spans multiple lines, so we read
-    // bytes (not just the first line) until at least 2 KiB lands.
+    // For writes larger than `LineWriter`'s internal buffer the writer
+    // flushes the existing buffer first and then writes the overflow
+    // straight through to the inner `Stdout`; data is never lost, but the
+    // buffering benefit goes away. Bumping the capacity to 8 KiB keeps
+    // long formatted entries inside the buffer until the trailing newline
+    // triggers a single flush. The fixture below comfortably exceeds 2
+    // KiB because the `data` value alone is 2 KiB and survives truncation
+    // thanks to `--max-field-length 0`. Output spans multiple lines, so
+    // we read bytes (not just the first line) until at least 2 KiB lands.
     let big = "x".repeat(2048);
     let input = format!(r#"{{"level":"info","msg":"big","data":"{big}"}}"#);
     let output = output_within(
@@ -146,6 +152,27 @@ fn long_2kib_line_flushed_before_stdin_closes() {
         "expected full 2KiB value in output, got len={}",
         output.len()
     );
+}
+
+#[test]
+fn multiline_json_reassembly_flushed_before_stdin_closes() {
+    // Multi-line JSON (raw newlines inside a string) is reassembled in
+    // `process_lines` and then handed to the same `write_entry` path as
+    // single-line JSON. This guards the reassembly branch against any
+    // future change that adds its own buffering.
+    let input = "{\"level\":\"error\",\"msg\":\"boom\",\"trace\":\"line1\nline2\nline3\"}";
+    let output = output_within(
+        input,
+        &["--color=never"],
+        // Enough bytes to require both the level line and a follow-up
+        // field line to be flushed.
+        40,
+        Duration::from_secs(5),
+    )
+    .expect("cor did not flush a reassembled multi-line entry before timing out");
+
+    assert!(output.contains("ERROR"), "expected level: {output:?}");
+    assert!(output.contains("boom"), "expected msg: {output:?}");
 }
 
 #[test]
