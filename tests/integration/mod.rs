@@ -11,9 +11,8 @@ mod streaming;
 use assert_cmd::Command;
 
 /// Shared helper: build a `cor` command with config isolation.
-#[allow(deprecated)]
 pub fn cor() -> Command {
-    let mut cmd = Command::cargo_bin("cor").unwrap();
+    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("cor"));
     cmd.env("XDG_CONFIG_HOME", "/tmp/cor-test-no-config");
     cmd
 }
