@@ -63,6 +63,12 @@ $ echo '{"level":"info","ts":"2026-01-15T10:30:01.456Z","msg":"request completed
 
 ![Structured fields](https://raw.githubusercontent.com/alexsavio/cor-cli/main/assets/demo/07-structured-fields.png)
 
+### Live streaming
+
+`kubectl logs -f my-pod | cor --level info`
+
+![Streaming output](https://raw.githubusercontent.com/alexsavio/cor-cli/main/assets/demo/08-streaming.png)
+
 ## Features
 
 - **Auto-detects fields** from logrus, zap, slog, pino, bunyan, structlog, and more
@@ -83,6 +89,7 @@ $ echo '{"level":"info","ts":"2026-01-15T10:30:01.456Z","msg":"request completed
 - **Shell completions** — `--completions bash|zsh|fish|elvish|powershell`
 - **Config file** — `~/.config/cor/config.toml` for persistent settings
 - **NO_COLOR** — respects [no-color.org](https://no-color.org) convention
+- **Live streaming** — line-buffered output flushes per line, so `kubectl logs -f`, `tail -f`, and other slow producers render entries as they arrive
 - **Fast** — ~400K lines/sec, O(line-length) memory, streaming I/O
 
 ## Install
