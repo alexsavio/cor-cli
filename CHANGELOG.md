@@ -7,6 +7,10 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+### 📚 Documentation
+
+- *(readme)* Add streaming demo + live-streaming feature bullet
+
 ### ⚙️ Miscellaneous Tasks
 
 - *(release)* Bump softprops/action-gh-release v2 -> v3 (Node 24)
