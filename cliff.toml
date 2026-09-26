@@ -40,7 +40,7 @@ render_always = true
 # An array of regex based postprocessors to modify the changelog.
 postprocessors = [
     # Replace the placeholder <REPO> with the GitHub URL.
-    { pattern = '<REPO>', replace = "https://github.com/daita-io/trading-webhooks" },
+    { pattern = '<REPO>', replace = "https://github.com/alexsavio/cor-cli" },
 ]
 # Output file path
 output = "CHANGELOG.md"
@@ -59,7 +59,7 @@ split_commits = false
 # An array of regex based parsers to modify commit messages prior to further processing.
 commit_preprocessors = [
     # Replace issue numbers with link templates.
-    { pattern = '\\(#([0-9]+)\\)', replace = "([#${1}](<REPO>/issues/${1}))" },
+    { pattern = '\(#([0-9]+)\)', replace = "([#${1}](<REPO>/issues/${1}))" },
 ]
 # Prevent commits that are breaking from being excluded by commit parsers.
 protect_breaking_commits = false

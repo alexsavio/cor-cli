@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `cor` is a Rust CLI tool that colorizes JSON-structured log lines from stdin. It auto-detects timestamp/level/message fields across logging frameworks (logrus, zap, slog, pino, bunyan, structlog) and outputs colorized human-readable text. Non-JSON lines pass through unchanged.
 
-- **Language:** Rust (edition 2024, MSRV 1.92)
+- **Language:** Rust (edition 2024, MSRV 1.98)
 - **Binary:** `cor`
 - **Crate:** `cor` on crates.io
 
