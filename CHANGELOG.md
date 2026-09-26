@@ -14,17 +14,18 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 ### ⚙️ Miscellaneous Tasks
 
 - *(release)* Bump softprops/action-gh-release v2 -> v3 (Node 24)
+- Upgrade deps and actions, fix cliff.toml repo link ([#8](https://github.com/alexsavio/cor-cli/issues/8))
 
 ## [2026.4.0] - 2026-04-29
 
 ### 🐛 Bug Fixes
 
-- *(io)* Use LineWriter so streaming inputs print per-line (#5)
+- *(io)* Use LineWriter so streaming inputs print per-line ([#5](https://github.com/alexsavio/cor-cli/issues/5))
 
 ### ⚙️ Miscellaneous Tasks
 
-- *(tests)* Replace deprecated assert_cmd::Command::cargo_bin with macro (#6)
-- Bump deprecated Node 20 actions and add zizmor (#7)
+- *(tests)* Replace deprecated assert_cmd::Command::cargo_bin with macro ([#6](https://github.com/alexsavio/cor-cli/issues/6))
+- Bump deprecated Node 20 actions and add zizmor ([#7](https://github.com/alexsavio/cor-cli/issues/7))
 - *(zizmor)* Disable online audits to avoid 403 on /advisories
 - Bump codecov-action v4 -> v6 (composite, no Node 20)
 - *(changelog)* Generate CHANGELOG.md via git cliff before formatting
@@ -51,11 +52,11 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ### 🚀 Features
 
-- *(parser)* Extract logger, caller, and error as first-class fields (#2)
+- *(parser)* Extract logger, caller, and error as first-class fields ([#2](https://github.com/alexsavio/cor-cli/issues/2))
 
 ### 🚜 Refactor
 
-- Replace use_color param with owo-colors override system (#1)
+- Replace use_color param with owo-colors override system ([#1](https://github.com/alexsavio/cor-cli/issues/1))
 
 ### ⚙️ Miscellaneous Tasks
 
