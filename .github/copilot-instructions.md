@@ -4,7 +4,7 @@
 
 `cor` is a Rust CLI tool that colorizes JSON-structured log lines from stdin. It reads newline-delimited JSON log entries, auto-detects timestamp/level/message fields across major logging frameworks (logrus, zap, slog, pino, bunyan, structlog), and outputs colorized human-readable text to stdout. Non-JSON lines pass through unchanged. It also supports embedded JSON (lines with a non-JSON prefix before a JSON object).
 
-- **Language:** Rust (edition 2024, MSRV 1.92)
+- **Language:** Rust (edition 2024, MSRV 1.98)
 - **Binary:** `cor`
 - **Repository:** <https://github.com/alexsavio/cor-cli>
 
