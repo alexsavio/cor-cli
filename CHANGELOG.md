@@ -15,6 +15,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 - *(release)* Bump softprops/action-gh-release v2 -> v3 (Node 24)
 - Upgrade deps and actions, fix cliff.toml repo link ([#8](https://github.com/alexsavio/cor-cli/issues/8))
+- Release v2026.9.0
 
 ## [2026.4.0] - 2026-04-29
 
