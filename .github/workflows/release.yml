@@ -169,7 +169,7 @@ jobs:
 
       - name: Generate release notes
         run: |
-          git cliff --current --strip header > RELEASE_NOTES.md
+          git cliff --current --strip header -o RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 
       - name: Create GitHub Release

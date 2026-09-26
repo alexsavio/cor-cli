@@ -144,7 +144,7 @@ changelog:
 
 # Preview changelog for next release (unreleased changes)
 changelog-preview:
-    git-cliff --unreleased --strip header
+    git-cliff --unreleased --strip header -o -
 
 # Compute next CalVer version (YYYY.MM.MICRO)
 _next-version:
