@@ -11,6 +11,10 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 - *(release)* Write git-cliff release notes with -o instead of stdout ([#9](https://github.com/alexsavio/cor-cli/issues/9))
 
+### ⚙️ Miscellaneous Tasks
+
+- *(cargo)* Keep dev tooling, specs and screenshots out of the crate ([#10](https://github.com/alexsavio/cor-cli/issues/10))
+
 ## [2026.9.0] - 2026-09-26
 
 ### 📚 Documentation
