@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.PATCH).
 
+## [Unreleased]
+
+### 🐛 Bug Fixes
+
+- *(release)* Write git-cliff release notes with -o instead of stdout ([#9](https://github.com/alexsavio/cor-cli/issues/9))
+
 ## [2026.9.0] - 2026-09-26
 
 ### 📚 Documentation
