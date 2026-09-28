@@ -9,6 +9,27 @@ repository = "https://github.com/alexsavio/cor-cli"
 readme = "README.md"
 keywords = ["json", "log", "color", "cli", "structured-logging"]
 categories = ["command-line-utilities", "development-tools"]
+# The tests and their fixtures stay in; the rest is dev tooling, specs and
+# README screenshots that crates.io serves from the repository.
+exclude = [
+    ".cargo/",
+    ".config/",
+    ".editorconfig",
+    ".github/",
+    ".gitignore",
+    ".specify/",
+    "CLAUDE.md",
+    "assets/",
+    "benches/",
+    "cliff.toml",
+    "clippy.toml",
+    "justfile",
+    "rumdl.toml",
+    "rustfmt.toml",
+    "scripts/",
+    "specs/",
+    "tasks/",
+]
 
 [[bin]]
 name = "cor"
