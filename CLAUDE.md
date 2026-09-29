@@ -89,3 +89,8 @@ Uses CalVer versioning (YYYY.MM.MICRO):
 just release-next    # Auto-compute next version
 just release 2026.2.6  # Explicit version
 ```
+
+The recipe runs from a clean `main` equal to `origin/main`, runs
+`just check`, writes `CHANGELOG.md`, then pushes the commit and the tag
+in one push. The tag starts the Release workflow, which also publishes to
+crates.io.

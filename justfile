@@ -167,10 +167,37 @@ release VERSION:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    if [[ ! "{{VERSION}}" =~ ^[0-9]{4}\.[1-9][0-9]?\.[0-9]+$ ]]; then
+        echo "VERSION must be YYYY.MM.MICRO, e.g. 2026.9.0 (no leading v)" >&2
+        exit 1
+    fi
+    if git rev-parse -q --verify "refs/tags/v{{VERSION}}" >/dev/null; then
+        echo "tag v{{VERSION}} exists already" >&2
+        exit 1
+    fi
+    if [ "$(git branch --show-current)" != main ]; then
+        echo "release from main" >&2
+        exit 1
+    fi
+    if ! git diff --quiet HEAD; then
+        echo "commit or stash your changes first" >&2
+        exit 1
+    fi
+    git fetch -q origin main
+    if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+        echo "main is not the same as origin/main: pull or push first" >&2
+        exit 1
+    fi
+
     echo "📦 Releasing v{{VERSION}} (CalVer)"
 
-    # Update Cargo.toml version (only in [package] section)
-    sed -i '' '/^\[package\]/,/^\[/{s/^version = ".*"/version = "{{VERSION}}"/;}' Cargo.toml
+    # A stop before the commit puts the files back, so a rerun gets the same version.
+    trap 'git checkout -q -- Cargo.toml Cargo.lock CHANGELOG.md; rm -f Cargo.toml.bak' EXIT
+
+    # Update Cargo.toml version (only in [package] section), then Cargo.lock
+    sed -i.bak '/^\[package\]/,/^\[/{s/^version = ".*"/version = "{{VERSION}}"/;}' Cargo.toml
+    rm Cargo.toml.bak
+    cargo check --quiet
 
     # Ensure it compiles and passes checks
     just check
@@ -179,18 +206,21 @@ release VERSION:
     git-cliff --tag "v{{VERSION}}" -o CHANGELOG.md
     rumdl fmt CHANGELOG.md
 
-    # Update Cargo.lock
-    cargo check
+    # A merge or the Changelog workflow can push to main while the checks run.
+    git fetch -q origin main
+    if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+        echo "origin/main moved while the checks ran: pull, then release again" >&2
+        exit 1
+    fi
 
-    # Commit, tag, and push
+    # Commit, tag, and push. cliff.toml leaves this subject out of the changelog.
     git add Cargo.toml Cargo.lock CHANGELOG.md
-    git commit -m "chore: release v{{VERSION}}"
+    git commit -m "chore(release): prepare for v{{VERSION}}"
     git tag "v{{VERSION}}"
-    git push
-    git push origin "v{{VERSION}}"
+    # One atomic push: the Changelog workflow must see the tag with the commit.
+    git push --atomic origin main "v{{VERSION}}"
 
-    echo "✅ Released v{{VERSION}}"
-    echo "   Run 'just publish' to push to crates.io"
+    echo "✅ Released v{{VERSION}}: the Release workflow builds it and publishes it to crates.io"
 
 # Create a new release with auto-computed CalVer version
 release-next:
